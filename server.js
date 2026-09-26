@@ -12,11 +12,9 @@ import { Server } from "socket.io";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 3000;
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, "data");
-const HOST_PASSWORD = process.env.HOST_PASSWORD || "";
 const MAX_IMG_BYTES = 200 * 1024;
 const MAX_PLAYERS = 2000;
 
-if (!HOST_PASSWORD) console.warn("AVISO: defina HOST_PASSWORD. Sem ela ninguém consegue criar bingos.");
 
 fs.mkdirSync(DATA_DIR, { recursive: true });
 const db = new DatabaseSync(path.join(DATA_DIR, "bingo.db"));
@@ -170,10 +168,14 @@ function publicGame(req, res, next) {
   req.game = g; next();
 }
 
-// ----- criação -----
+// ----- criação (sem senha; limite de 10 bingos por hora por endereço) -----
+const creations = new Map();
 app.post("/api/games", (req, res) => {
-  const { password, name, grid, pattern } = req.body || {};
-  if (!HOST_PASSWORD || !safeEqual(password || "", HOST_PASSWORD)) return res.status(403).json({ error: "Senha do host incorreta." });
+  const { name, grid, pattern } = req.body || {};
+  const key = `${req.ip}:${Math.floor(Date.now() / 3600000)}`;
+  const c = (creations.get(key) || 0) + 1; creations.set(key, c);
+  if (creations.size > 5000) creations.clear();
+  if (c > 10) return res.status(429).json({ error: "Limite de bingos criados por hora. Tente mais tarde." });
   const gridN = [3, 4, 5].includes(Number(grid)) ? Number(grid) : 4;
   const pat = pattern === "full" ? "full" : "line";
   const g = { id: id(), code: newCode(), name: clean(name, 40) || "Bingo", host_token: crypto.randomBytes(24).toString("hex") };

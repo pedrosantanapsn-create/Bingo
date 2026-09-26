@@ -26,7 +26,6 @@
   <form id="createForm" class="list" style="gap:12px">
     <div class="row">
       <label class="grow">Nome<input id="name" maxlength="40" placeholder="Bingo"></label>
-      <label class="grow">Senha do host<input id="password" type="password" required></label>
     </div>
     <div class="row">
       <label class="grow">Cartela
@@ -58,7 +57,7 @@
     e.preventDefault(); err("createErr", "");
     try {
       const name = document.getElementById("name").value || "Bingo";
-      const r = await api("POST", "/api/games", { password: document.getElementById("password").value, name, grid: document.getElementById("grid").value, pattern: document.getElementById("pattern").value });
+      const r = await api("POST", "/api/games", { name, grid: document.getElementById("grid").value, pattern: document.getElementById("pattern").value });
       const hosted = store.get("hosted") || [];
       hosted.unshift({ code: r.code, token: r.hostToken, name, at: Date.now() });
       store.set("hosted", hosted.slice(0, 20));

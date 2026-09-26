@@ -1,12 +1,12 @@
 # Bingo
 
-Site de bingo em tempo real, sem cadastro para os jogadores. Quem organiza (o host) cria o bingo com uma senha, envia as imagens que serão sorteadas e controla o sorteio; cada jogador entra com um código de 5 letras, informa o nome e recebe uma cartela. As imagens sorteadas aparecem marcadas na cartela na hora e o próprio servidor confere quem fez BINGO.
+Site de bingo em tempo real, sem cadastro para os jogadores. Quem organiza (o host) cria o bingo, envia as imagens que serão sorteadas e controla o sorteio; cada jogador entra com um código de 5 letras, informa o nome e recebe uma cartela. As imagens sorteadas aparecem marcadas na cartela na hora e o próprio servidor confere quem fez BINGO.
 
 ## Como funciona
 
 | Quem | O que faz |
 |------|-----------|
-| Host | Cria o bingo (senha do host), envia as imagens, compartilha o link, inicia, sorteia (aleatório, automático ou escolhendo a imagem), desfaz, reinicia, encerra. |
+| Host | Cria o bingo, envia as imagens, compartilha o link, inicia, sorteia (aleatório, automático ou escolhendo a imagem), desfaz, reinicia, encerra. |
 | Jogador | Abre o link, informa o nome e fica na sala de espera; ao iniciar recebe a cartela e a entrada é fechada. |
 | Tela | `/tela?c=CODIGO` mostra o sorteio em tamanho grande para TV ou projetor. |
 | Servidor | Sorteia com aleatoriedade criptográfica, gera cartelas únicas, confere o BINGO e guarda tudo em banco de dados SQLite. |
@@ -14,7 +14,7 @@ Site de bingo em tempo real, sem cadastro para os jogadores. Quem organiza (o ho
 ## Segurança
 
 - Sorteio, cartelas e conferência acontecem **no servidor**. O navegador só exibe.
-- Criar bingos exige a senha definida em `HOST_PASSWORD`.
+- Qualquer pessoa pode criar um bingo (limite de 10 por hora por endereço IP).
 - Cada bingo recebe um **token de host** (link do painel). Sem ele, ninguém sorteia, edita ou apaga.
 - Jogadores só conseguem entrar e receber cartela; nunca escrevem no sorteio nem se declaram vencedores.
 - Imagens são reduzidas no navegador (240 px) e validadas no servidor (tipo e tamanho). Limite de 120 imagens por bingo.
@@ -27,10 +27,10 @@ Requer Node.js 22.13 ou mais novo.
 
 ```bash
 npm install
-HOST_PASSWORD=escolha-uma-senha npm start
+npm start
 ```
 
-Abra http://localhost:3000. No Windows (PowerShell): `$env:HOST_PASSWORD="escolha-uma-senha"; npm start`.
+Abra http://localhost:3000.
 
 ## Publicar na internet
 
@@ -38,19 +38,17 @@ O servidor precisa rodar Node.js continuamente (não funciona em Netlify ou GitH
 
 **Railway** (mantém o banco; requer plano pago):
 1. Crie um projeto a partir deste repositório no GitHub.
-2. Em *Variables*, defina `HOST_PASSWORD`.
-3. Adicione um *Volume* montado em `/data` e defina `DATA_DIR=/data`.
-4. Gere o domínio público em *Settings → Networking*.
+2. Adicione um *Volume* montado em `/data` e defina `DATA_DIR=/data`.
+3. Gere o domínio público em *Settings → Networking*.
 
-**Render**: crie um *Web Service*, Build `npm install`, Start `npm start`, variável `HOST_PASSWORD`. No plano gratuito o disco é apagado a cada deploy e o serviço dorme sem uso; para manter o histórico, adicione um *Disk* montado em `/data` com `DATA_DIR=/data` (plano pago).
+**Render**: crie um *Web Service*, Build `npm install`, Start `npm start`. No plano gratuito o disco é apagado a cada deploy e o serviço dorme sem uso; para manter o histórico, adicione um *Disk* montado em `/data` com `DATA_DIR=/data` (plano pago).
 
-**Fly.io**: `fly launch`, crie um volume (`fly volumes create data`) e defina `DATA_DIR=/data` e `HOST_PASSWORD` com `fly secrets set`.
+**Fly.io**: `fly launch`, crie um volume (`fly volumes create data`) e defina `DATA_DIR=/data`.
 
 ## Variáveis de ambiente
 
 | Variável | Obrigatória | Descrição |
 |----------|-------------|-----------|
-| `HOST_PASSWORD` | sim | Senha para criar bingos. |
 | `PORT` | não | Porta (padrão 3000; as hospedagens definem sozinhas). |
 | `DATA_DIR` | não | Pasta do banco `bingo.db` (padrão `./data`). |
 
