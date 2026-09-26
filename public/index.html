@@ -4,20 +4,26 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Bingo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Work+Sans:wght@400;500&display=swap">
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
 <div class="page">
   <header><a href="/">Bingo</a></header>
 
-  <h1>Entrar</h1>
-  <form id="joinForm" class="row">
-    <label class="grow">Código<input id="code" maxlength="5" autocomplete="off" autocapitalize="characters" placeholder="5 letras" required></label>
-    <button class="primary" type="submit">Entrar</button>
-  </form>
-  <div id="joinErr" class="error" hidden></div>
+  <div class="hero">
+    <h1>Digite o código</h1>
+    <form id="joinForm">
+      <input id="code" maxlength="5" autocomplete="off" autocapitalize="characters" placeholder="ABCDE" aria-label="Código do bingo" required>
+      <button class="primary" type="submit">Entrar</button>
+    </form>
+    <div id="joinErr" class="error" hidden></div>
+  </div>
 
-  <h2>Organizar</h2>
+  <details class="organize">
+  <summary>Organizar um bingo</summary>
   <form id="createForm" class="list" style="gap:12px">
     <div class="row">
       <label class="grow">Nome<input id="name" maxlength="40" placeholder="Bingo"></label>
@@ -33,6 +39,7 @@
     </div>
   </form>
   <div id="createErr" class="error" hidden></div>
+  </details>
 </div>
 <script src="/socket.io/socket.io.js"></script>
 <script src="/app.js"></script>

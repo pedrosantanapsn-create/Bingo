@@ -51,22 +51,25 @@ window.Bingo = (() => {
     return d1 || d2 ? "Diagonal" : null;
   }
   const hits = (cells, drawnSet) => cells.filter((c) => c === null || drawnSet.has(c)).length;
+  let prevDraw = null;
   function board(card, grid, byId, drawnSet) {
     const b = $("div", { class: "board", style: "grid-template-columns:repeat(" + grid + ",1fr)" });
     card.cells.forEach((cid) => {
       if (cid === null) { b.append($("div", { class: "cell free hit" }, "Livre")); return; }
       const it = byId[cid];
-      const cell = $("div", { class: "cell" + (drawnSet.has(cid) ? " hit" : "") });
+      const cell = $("div", { class: "cell" + (drawnSet.has(cid) ? " hit" : "") + (cid === prevDraw ? " just" : "") });
       if (it) cell.append($("img", { src: it.img, alt: it.name }), $("div", { class: "cap" }, it.name));
       b.append(cell);
     });
     return b;
   }
   const history = (draws, byId) => $("div", { class: "history" }, ...draws.slice().reverse().map((id) => (byId[id] ? $("img", { src: byId[id].img, alt: byId[id].name, title: byId[id].name }) : null)));
-  const stage = (last, sub, emptyText) => $("div", { class: "stage" },
-    last && last.img ? $("img", { src: last.img, alt: last.name }) : $("div", { class: "empty" }, emptyText || "Nada sorteado"),
+  const stage = (last, sub, emptyText) => {
+    const isNew = last && last.id !== prevDraw; if (last) prevDraw = last.id;
+    return $("div", { class: "stage" },
+    last && last.img ? $("img", { src: last.img, alt: last.name, class: isNew ? "new" : null }) : $("div", { class: "empty" }, emptyText || "Nada sorteado"),
     $("div", { class: "name" }, last ? last.name : "—"),
-    $("div", { class: "count" }, sub));
+    $("div", { class: "count" }, sub)); };
   const winnersList = (winners, detail) => $("div", {}, ...winners.map((w, i) => $("div", { class: "winner" }, $("b", {}, (i + 1) + "º"), $("span", { class: "grow" }, w.player + " · cartela " + w.n), $("span", { class: "note" }, detail ? w.how + " · sorteio " + w.drawIndex : w.how))));
   // acompanha o jogo em tempo real; as imagens só são baixadas quando mudam
   function watch(code, onState) {
