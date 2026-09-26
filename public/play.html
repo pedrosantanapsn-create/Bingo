@@ -75,7 +75,7 @@
     const how = checkPattern(mine.cells, s.grid, s.pattern, drawn);
     const rank = s.winners.findIndex((w) => w.cardId === mine.id);
     const fresh = how && lastBingo !== mine.id;
-    if (how) app.append($("div", { class: "bingo" + (fresh ? " pulse" : "") }, $("b", {}, "Bingo"), how + (rank >= 0 ? " · " + (rank + 1) + "º lugar" : " · aguarde a confirmação")));
+    if (how) app.append($("div", { class: "bingo" + (fresh ? " pulse" : "") }, $("b", {}, "Bingo"), how + (rank >= 0 ? " · " + (rank + 1) + "º lugar" : " · avise o host")));
     if (fresh) { lastBingo = mine.id; try { navigator.vibrate?.([200, 100, 200]); } catch {} }
 
     const last = s.draws.length ? byId[s.draws[s.draws.length - 1]] : null;

@@ -36,12 +36,13 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS cards_game ON cards(game_id, n);
 `);
 try { db.exec("ALTER TABLE cards ADD COLUMN player_id TEXT"); } catch {} // bancos criados na versão anterior
+try { db.exec("ALTER TABLE games ADD COLUMN show_winners INTEGER NOT NULL DEFAULT 0"); } catch {}
 db.exec("CREATE INDEX IF NOT EXISTS cards_player ON cards(player_id)");
 
 const q = {
   gameByCode: db.prepare("SELECT * FROM games WHERE code = ?"),
   insertGame: db.prepare("INSERT INTO games (id, code, name, grid, pattern, status, host_token, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 'setup', ?, ?, ?)"),
-  updateGame: db.prepare("UPDATE games SET name=?, grid=?, pattern=?, status=?, allow_join=?, draws=?, winners=?, items_version=?, updated_at=? WHERE id=?"),
+  updateGame: db.prepare("UPDATE games SET name=?, grid=?, pattern=?, status=?, allow_join=?, draws=?, winners=?, items_version=?, show_winners=?, updated_at=? WHERE id=?"),
   deleteGame: db.prepare("DELETE FROM games WHERE id = ?"),
   items: db.prepare("SELECT id, name, img, ord FROM items WHERE game_id = ? ORDER BY ord"),
   itemsMeta: db.prepare("SELECT id, name, ord FROM items WHERE game_id = ? ORDER BY ord"),
@@ -100,13 +101,13 @@ function loadGame(code) {
 }
 function saveGame(g) {
   g.updated_at = now();
-  q.updateGame.run(g.name, g.grid, g.pattern, g.status, g.allow_join ? 1 : 0, JSON.stringify(g.draws), JSON.stringify(g.winners), g.items_version, g.updated_at, g.id);
+  q.updateGame.run(g.name, g.grid, g.pattern, g.status, g.allow_join ? 1 : 0, JSON.stringify(g.draws), JSON.stringify(g.winners), g.items_version, g.show_winners ? 1 : 0, g.updated_at, g.id);
 }
 // estado público: leve, sem cartelas (cada jogador busca só a sua)
 function publicState(g) {
   return {
     code: g.code, name: g.name, grid: g.grid, pattern: g.pattern, status: g.status, allowJoin: !!g.allow_join,
-    draws: g.draws, winners: g.winners, itemsVersion: g.items_version, items: q.itemsMeta.all(g.id),
+    draws: g.draws, winners: g.show_winners ? g.winners : [], winnerCount: g.winners.length, winnersShown: !!g.show_winners, itemsVersion: g.items_version, items: q.itemsMeta.all(g.id),
     playerCount: q.playerCount.get(g.id).c, cardCount: q.cardCount.get(g.id).c, updatedAt: g.updated_at,
   };
 }
@@ -230,12 +231,14 @@ app.get("/api/games/:code/me", publicGame, (req, res) => {
 app.get("/api/games/:code/cards", hostAuth, (req, res) => {
   res.json({ cards: q.cards.all(req.game.id).map((c) => ({ id: c.id, playerId: c.player_id, n: c.n, player: c.player, cells: JSON.parse(c.cells) })) });
 });
+app.get("/api/games/:code/winners", hostAuth, (req, res) => res.json({ winners: req.game.winners }));
 app.post("/api/games/:code/settings", hostAuth, (req, res) => {
   const g = req.game, b = req.body || {};
   if (b.name !== undefined) g.name = clean(b.name, 40) || g.name;
   if (b.grid !== undefined && [3, 4, 5].includes(Number(b.grid)) && g.status === "setup") g.grid = Number(b.grid);
   if (b.pattern !== undefined) g.pattern = b.pattern === "full" ? "full" : "line";
   if (b.allowJoin !== undefined) g.allow_join = b.allowJoin ? 1 : 0;
+  if (b.showWinners !== undefined) g.show_winners = b.showWinners ? 1 : 0;
   saveGame(g); broadcast(g); res.json({ ok: true });
 });
 app.post("/api/games/:code/items", hostAuth, (req, res) => {

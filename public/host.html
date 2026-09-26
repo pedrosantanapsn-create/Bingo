@@ -29,7 +29,7 @@
   const code = (params.get("c") || "").toUpperCase(), token = params.get("t") || "";
   const app = document.getElementById("app");
   const H = (method, path, body) => api(method, "/api/games/" + code + path, body, { "x-host-token": token });
-  let state = null, images = {}, cards = [], players = [], autoTimer = null, autoSec = 8, openCard = null, confirmKey = null, pickMode = false, lastCounts = "", namesOpen = false;
+  let state = null, images = {}, cards = [], players = [], winners = [], openWinner = null, autoTimer = null, autoSec = 8, openCard = null, confirmKey = null, pickMode = false, lastCounts = "", namesOpen = false;
   const screenOpts = store.get("screen:" + code) || { tema: "auto", cor: "" };
   const need = (g) => (g === 5 ? 24 : g * g);
 
@@ -38,12 +38,12 @@
   watch(code, async (s, imgs) => {
     if (!s) { app.replaceChildren($("div", { class: "error" }, "Este bingo foi apagado."), $("a", { href: "/" }, "Início")); return; }
     state = s; images = imgs;
-    const counts = s.playerCount + "/" + s.cardCount + "/" + s.status;
+    const counts = s.playerCount + "/" + s.cardCount + "/" + s.status + "/" + s.winnerCount;
     if (counts !== lastCounts) { lastCounts = counts; await refreshLists(); }
     render();
   });
   async function refreshLists() {
-    try { const [c, p] = await Promise.all([H("GET", "/cards"), api("GET", "/api/games/" + code + "/players")]); cards = c.cards; players = p.players; } catch (e) { toast(e.message); }
+    try { const [c, p, w] = await Promise.all([H("GET", "/cards"), api("GET", "/api/games/" + code + "/players"), H("GET", "/winners")]); cards = c.cards; players = p.players; winners = w.winners; } catch (e) { toast(e.message); }
   }
   async function run(fn) { try { await fn(); } catch (e) { toast(e.message); } }
   function stopAuto() { if (autoTimer) clearInterval(autoTimer); autoTimer = null; }
@@ -101,7 +101,7 @@
     app.append($("h1", {}, s.name), $("p", { class: "note" }, statusLabel(s.status) + " · " + s.grid + "×" + s.grid + " · " + (s.pattern === "full" ? "cartela cheia" : "linha, coluna ou diagonal")));
 
     if (s.status === "setup") {
-      app.append($("div", { class: "stats" }, $("div", {}, $("b", {}, s.items.length), $("span", {}, "imagens (mín. " + need(s.grid) + ")")), $("div", {}, $("b", {}, s.playerCount), $("span", {}, "na sala de espera")), $("div", {}, $("b", {}, s.cardCount), $("span", {}, "cartelas avulsas"))));
+      app.append($("div", { class: "stats" }, $("div", {}, $("b", {}, s.items.length), $("span", {}, "imagens (mín. " + need(s.grid) + ")")), $("div", {}, $("b", {}, s.playerCount), $("span", {}, "na sala de espera"))));
       const file = $("input", { type: "file", accept: "image/*", multiple: "", hidden: true, onchange: async (e) => {
         const files = Array.from(e.target.files); e.target.value = ""; let ok = 0;
         for (const f of files) { try { const img = await fileToThumb(f); await H("POST", "/items", { name: f.name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").slice(0, 30), img }); ok++; } catch (ex) { toast(f.name + ": " + ex.message); } }
@@ -117,14 +117,6 @@
       app.append($("h2", {}, "Link"), shareBox());
       app.append($("h2", {}, "Tela da live"), screenBox());
       app.append($("h2", {}, "Sala de espera (" + s.playerCount + ")"), playersList());
-
-      const playerIn = $("input", { placeholder: "Nome", maxlength: "30" });
-      const qtyIn = $("input", { type: "number", min: "1", max: "20", value: "1", style: "width:80px" });
-      app.append($("h2", {}, "Cartelas avulsas"),
-        $("p", { class: "note" }, "Para quem vai jogar sem celular."),
-        $("div", { class: "row" }, $("label", { class: "grow" }, "Jogador", playerIn), $("label", {}, "Qtd.", qtyIn),
-          $("button", { disabled: s.items.length < need(s.grid), onclick: () => run(async () => { await H("POST", "/cards", { player: playerIn.value, qty: qtyIn.value }); playerIn.value = ""; }) }, "Gerar")),
-        cardsList(drawn));
 
       app.append($("h2", {}, "Iniciar"),
         $("p", { class: "note" }, "Cada pessoa da sala de espera recebe a sua cartela e a entrada é fechada."),
@@ -150,7 +142,20 @@
         app.append($("h2", {}, "Toque na imagem para sorteá-la"), $("div", { class: "grid-items" }, ...rest.map((it) => $("div", { class: "tile pick", onclick: () => run(() => H("POST", "/draw", { itemId: it.id })) }, byId[it.id] ? $("img", { src: byId[it.id].img, alt: it.name }) : null, $("span", { class: "note" }, it.name)))));
       }
     }
-    if (s.winners.length) app.append($("h2", {}, "Vencedores"), winnersList(s.winners, true));
+    if (winners.length) {
+      const wset = new Set(winners.map((w) => w.cardId));
+      const byCard = Object.fromEntries(cards.map((c) => [c.id, c]));
+      app.append($("h2", {}, "Vencedores (só você vê)"),
+        $("label", { class: "check", style: "margin-bottom:12px" }, $("input", { type: "checkbox", checked: s.winnersShown, onchange: (e) => run(() => H("POST", "/settings", { showWinners: e.target.checked })) }), "Mostrar os vencedores na tela da live e para os jogadores"),
+        $("div", { class: "list" }, ...winners.map((w, i) => {
+          const c = byCard[w.cardId];
+          const row = $("div", { class: "line link", onclick: () => { openWinner = openWinner === w.cardId ? null : w.cardId; render(); } },
+            $("b", { style: "font-size:1.4rem;font-weight:normal;color:var(--mark)" }, (i + 1) + "º"),
+            $("div", { class: "grow" }, $("h3", {}, w.player + " · cartela " + w.n), $("span", { class: "note" }, w.how + " · no " + w.drawIndex + "º sorteio · " + new Date(w.at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" }))),
+            $("span", { class: "tag" }, openWinner === w.cardId ? "fechar" : "ver cartela"));
+          return openWinner === w.cardId && c ? $("div", {}, row, board(c, s.grid, images, drawn)) : row;
+        })));
+    }
     app.append($("h2", {}, "Já sorteadas"), s.draws.length ? history(s.draws, byId) : $("p", { class: "note" }, "Ainda nenhuma."));
     app.append($("h2", {}, "Cartelas (" + cards.length + ")"),
       $("label", { class: "check", style: "margin-bottom:10px" }, $("input", { type: "checkbox", checked: s.allowJoin, onchange: (e) => run(() => H("POST", "/settings", { allowJoin: e.target.checked })) }), "Permitir entrada de novos jogadores"),

@@ -6,7 +6,7 @@ Site de bingo em tempo real, sem cadastro para os jogadores. Quem organiza (o ho
 
 | Quem | O que faz |
 |------|-----------|
-| Host | Cria o bingo, envia as imagens, compartilha o link, inicia, sorteia (aleatório, automático ou escolhendo a imagem), desfaz, reinicia, encerra. |
+| Host | Cria o bingo, envia as imagens, compartilha o link, inicia, sorteia (aleatório, automático ou escolhendo a imagem), vê os vencedores em área privada (com a cartela) e decide quando mostrá-los ao público, desfaz, reinicia, encerra. |
 | Jogador | Abre o link, informa o nome e fica na sala de espera; ao iniciar recebe a cartela e a entrada é fechada. |
 | Tela | `/tela?c=CODIGO` é a tela da live (OBS, TV ou projetor): 16:9 sem rolagem, QR code na espera, imagem grande, faixa das sorteadas e vencedores. Aceita `&tema=light|dark` e `&cor=RRGGBB` (cor do canal), configurados no painel do host. |
 | Servidor | Sorteia com aleatoriedade criptográfica, gera cartelas únicas, confere o BINGO e guarda tudo em banco de dados SQLite. |
