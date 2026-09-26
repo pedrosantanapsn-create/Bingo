@@ -61,7 +61,7 @@ public/host.html   painel do host
 public/play.html   sala de espera e cartela do jogador
 public/tela.html   tela de projeção
 public/app.js      funções compartilhadas
-public/style.css   visual (duas cores: tinta #1f3b2f e papel #f5f1e6)
+public/style.css   visual (tinta #1f3b2f, papel #f5f1e6, marcação #e8432a; modo escuro automático)
 data/bingo.db      banco SQLite (criado automaticamente)
 ```
 
@@ -72,7 +72,7 @@ Testado com 300 jogadores entrando ao mesmo tempo (0,5 s), geração de 300 cart
 ## Limitações
 
 - O link do painel do host contém o token; quem tiver o link controla o bingo. Não o compartilhe com jogadores.
-- Não há recuperação do link do host: se perder, crie outro bingo (o dispositivo que criou guarda os links na página inicial).
+- Não há recuperação do link do host: guarde-o ou deixe a aba aberta durante o jogo; se perder, crie outro bingo.
 - O SQLite embutido no Node ainda exibe um aviso de "experimental" ao iniciar; é inofensivo.
 
 ## Endereço publicado
