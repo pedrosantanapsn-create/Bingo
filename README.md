@@ -8,7 +8,7 @@ Site de bingo em tempo real, sem cadastro para os jogadores. Quem organiza (o ho
 |------|-----------|
 | Host | Cria o bingo, envia as imagens, compartilha o link, inicia, sorteia (aleatório, automático ou escolhendo a imagem), desfaz, reinicia, encerra. |
 | Jogador | Abre o link, informa o nome e fica na sala de espera; ao iniciar recebe a cartela e a entrada é fechada. |
-| Tela | `/tela?c=CODIGO` mostra o sorteio em tamanho grande para TV ou projetor. |
+| Tela | `/tela?c=CODIGO` é a tela da live (OBS, TV ou projetor): 16:9 sem rolagem, QR code na espera, imagem grande, faixa das sorteadas e vencedores. Aceita `&tema=light|dark` e `&cor=RRGGBB` (cor do canal), configurados no painel do host. |
 | Servidor | Sorteia com aleatoriedade criptográfica, gera cartelas únicas, confere o BINGO e guarda tudo em banco de dados SQLite. |
 
 ## Segurança
@@ -18,7 +18,7 @@ Site de bingo em tempo real, sem cadastro para os jogadores. Quem organiza (o ho
 - Cada bingo recebe um **token de host** (link do painel). Sem ele, ninguém sorteia, edita ou apaga.
 - Jogadores só conseguem entrar e receber cartela; nunca escrevem no sorteio nem se declaram vencedores.
 - Imagens são reduzidas no navegador (240 px) e validadas no servidor (tipo e tamanho). Limite de 120 imagens por bingo.
-- Limite de requisições por IP, cabeçalhos de proteção e nenhuma dependência além de Express e Socket.io.
+- Limite de requisições por IP, cabeçalhos de proteção e dependências: Express, Socket.io e qrcode.
 - Uso recreativo, sem apostas: não há pagamento nem prêmio em dinheiro.
 
 ## Rodar no computador

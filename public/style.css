@@ -12,16 +12,24 @@
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
-  :root {
-    --ink: #e9e2d0;
-    --paper: #17261f;
-    --ink-15: rgba(233, 226, 208, .14);
-    --ink-40: rgba(233, 226, 208, .4);
-    --ink-70: rgba(233, 226, 208, .72);
-    --mark: #ff6a4d;
-    --mark-soft: rgba(255, 106, 77, .5);
+  :root:not([data-theme="light"]) {
+    --ink: #e9e2d0; --paper: #17261f;
+    --ink-15: rgba(233, 226, 208, .14); --ink-40: rgba(233, 226, 208, .4); --ink-70: rgba(233, 226, 208, .72);
+    --mark: #ff6a4d; --mark-soft: rgba(255, 106, 77, .5);
     color-scheme: dark;
   }
+}
+:root[data-theme="dark"] {
+  --ink: #e9e2d0; --paper: #17261f;
+  --ink-15: rgba(233, 226, 208, .14); --ink-40: rgba(233, 226, 208, .4); --ink-70: rgba(233, 226, 208, .72);
+  --mark: #ff6a4d; --mark-soft: rgba(255, 106, 77, .5);
+  color-scheme: dark;
+}
+:root[data-theme="light"] {
+  --ink: #1f3b2f; --paper: #f5f1e6;
+  --ink-15: rgba(31, 59, 47, .15); --ink-40: rgba(31, 59, 47, .4); --ink-70: rgba(31, 59, 47, .7);
+  --mark: #e8432a; --mark-soft: rgba(232, 67, 42, .45);
+  color-scheme: light;
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; }
@@ -139,15 +147,6 @@ details.organize summary::before { content: "+ "; }
 details.organize[open] summary::before { content: "− "; }
 details.organize form { margin-top: 12px; }
 @media (max-width: 480px) { body { font-size: 16px; } .page { padding: 16px 16px 56px; } h1 { font-size: 1.6rem; } }
-/* tela de projeção */
-body.screen { display: flex; flex-direction: column; min-height: 100vh; }
-.screen .page { max-width: none; width: 100%; flex: 1; display: grid; grid-template-columns: 2fr 1fr; gap: 32px; padding: 24px 32px; }
-.screen .stage img, .screen .stage .empty { width: min(60vh, 70vw); }
-.screen .stage .name { font-size: 3rem; }
-.screen .stage .count { font-size: 1.1rem; }
-.screen .side { border-left: 1px solid var(--ink-15); padding-left: 32px; }
-.screen .history { flex-wrap: wrap; overflow: visible; }
-.screen .history img { width: 64px; height: 64px; }
-.screen .waiting .big { font-size: 6rem; }
-.screen .code { font-size: 3.5rem; }
-@media (max-width: 800px) { .screen .page { grid-template-columns: 1fr; } .screen .side { border-left: 0; padding-left: 0; } }
+/* lista de nomes recolhível */
+.names.collapsed { max-height: 4.6em; overflow: hidden; }
+.names-toggle { background: none; border: 0; padding: 4px 0; min-height: 0; text-decoration: underline; color: var(--ink-70); font-size: .85rem; }

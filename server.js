@@ -8,6 +8,7 @@ import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { DatabaseSync } from "node:sqlite";
 import { Server } from "socket.io";
+import QRCode from "qrcode";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 3000;
@@ -189,6 +190,12 @@ app.get("/api/games/:code", publicGame, (req, res) => res.json(publicState(req.g
 app.get("/api/games/:code/items", publicGame, (req, res) => {
   res.setHeader("Cache-Control", "private, max-age=3600");
   res.json({ itemsVersion: req.game.items_version, items: q.items.all(req.game.id) });
+});
+app.get("/api/games/:code/qr.svg", publicGame, async (req, res) => {
+  const link = `${req.protocol}://${req.get("host")}/play?c=${req.game.code}`;
+  const svg = await QRCode.toString(link, { type: "svg", margin: 1, color: { dark: "#000000", light: "#00000000" } });
+  res.setHeader("Content-Type", "image/svg+xml"); res.setHeader("Cache-Control", "public, max-age=86400");
+  res.send(svg);
 });
 app.get("/api/games/:code/players", publicGame, (req, res) => {
   res.json({ players: q.players.all(req.game.id).map((p) => ({ id: p.id, name: p.name })) });

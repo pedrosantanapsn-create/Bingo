@@ -4,48 +4,113 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Bingo — tela</title>
-<meta name="description" content="Bingo de imagens ao vivo. Entre com o código, receba sua cartela e acompanhe o sorteio.">
 <meta name="theme-color" content="#1f3b2f">
-<meta property="og:title" content="Bingo">
-<meta property="og:description" content="Bingo de imagens ao vivo. Entre com o código e receba sua cartela.">
-<meta property="og:type" content="website">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%231f3b2f'/%3E%3Ccircle cx='32' cy='32' r='22' fill='none' stroke='%23f5f1e6' stroke-width='3'/%3E%3Ctext x='32' y='41' font-family='Georgia,serif' font-size='26' text-anchor='middle' fill='%23f5f1e6'%3EB%3C/text%3E%3C/svg%3E">
+<script>
+  // tema e cor do canal vêm do link (definidos no painel do host), antes de pintar a tela
+  (() => { const p = new URLSearchParams(location.search); const t = p.get("tema"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+    const c = p.get("cor"); if (c && /^[0-9a-f]{6}$/i.test(c)) { const r = parseInt(c.slice(0,2),16), g = parseInt(c.slice(2,4),16), b = parseInt(c.slice(4,6),16); document.documentElement.style.setProperty("--mark", "#" + c); document.documentElement.style.setProperty("--mark-soft", `rgba(${r},${g},${b},.45)`); } })();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Work+Sans:wght@400;500&display=swap">
 <link rel="stylesheet" href="/style.css">
+<style>
+  html, body { height: 100%; overflow: hidden; cursor: none; }
+  body { font-size: clamp(14px, 1.6vh, 24px); }
+  .tv { height: 100vh; display: grid; grid-template-rows: auto 1fr auto; grid-template-columns: 1fr auto; padding: 2.5vh 3vw; gap: 2vh 3vw; box-sizing: border-box; }
+  .tv-head { grid-column: 1 / -1; display: flex; align-items: baseline; justify-content: space-between; border-bottom: 3px double var(--ink); padding-bottom: 1vh; }
+  .tv-head h1 { font-size: 3.6vh; margin: 0; font-weight: 500; }
+  .tv-head .brand { font-family: var(--sans); letter-spacing: .16em; text-transform: uppercase; font-size: 1.8vh; color: var(--ink-70); }
+  .tv-main { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 0; text-align: center; }
+  .tv-main img, .tv-main .empty { height: min(56vh, 42vw); width: min(56vh, 42vw); object-fit: cover; border-radius: 50%; border: .8vh double var(--ink); padding: .8vh; background: var(--paper); box-sizing: border-box; }
+  .tv-main img.new { animation: reveal .7s cubic-bezier(.2,.8,.2,1); }
+  .tv-main .empty { display: grid; place-items: center; border: .4vh dashed var(--ink-40); font-family: var(--sans); color: var(--ink-70); font-size: 2.4vh; }
+  .tv-name { font-size: 6vh; line-height: 1.1; margin-top: 2vh; font-weight: 500; max-width: 90%; }
+  .tv-num { font-family: var(--sans); font-size: 2.2vh; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-70); margin-top: 1vh; font-variant-numeric: tabular-nums; }
+  .tv-num b { color: var(--mark); font-weight: 500; }
+  .tv-side { width: 26vw; min-height: 0; overflow: hidden; border-left: 1px solid var(--ink-15); padding-left: 3vw; display: flex; flex-direction: column; }
+  .tv-side h2 { margin: 0 0 1.5vh; font-size: 1.8vh; }
+  .tv-side .winner { font-size: 2.2vh; padding: 1.2vh 1.6vh; margin-bottom: 1vh; }
+  .tv-side .winner b { font-size: 2.8vh; color: var(--mark); }
+  .tv-side .winner .note { font-size: 1.7vh; }
+  .more { font-family: var(--sans); font-size: 1.7vh; color: var(--ink-70); }
+  .tv-strip { grid-column: 1 / -1; display: flex; align-items: center; gap: 1.2vw; border-top: 1px solid var(--ink-15); padding-top: 1.5vh; }
+  .tv-strip .label { font-family: var(--sans); font-size: 1.7vh; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-70); white-space: nowrap; }
+  .tv-strip .items { display: flex; gap: 1vw; overflow: hidden; }
+  .tv-strip img { width: 8vh; height: 8vh; border-radius: 50%; object-fit: cover; border: .3vh solid var(--ink); flex: none; }
+  .tv-strip img:first-child { border-color: var(--mark); border-width: .5vh; }
+  /* sala de espera */
+  .wait { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr auto; gap: 4vw; align-items: center; min-height: 0; }
+  .wait .join { text-align: center; }
+  .wait .label { font-family: var(--sans); font-size: 2.2vh; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-70); }
+  .wait .code { font-size: 12vh; letter-spacing: .2em; line-height: 1; margin: 1vh 0; color: var(--mark); }
+  .wait .link { font-family: var(--sans); font-size: 2.4vh; }
+  .wait .qr { width: 34vh; height: 34vh; padding: 2vh; background: #fff; border-radius: 1vh; box-sizing: border-box; }
+  .wait .qr svg { width: 100%; height: 100%; display: block; }
+  .wait .count { font-size: 7vh; line-height: 1; margin-top: 4vh; }
+  .wait .count small { display: block; font-family: var(--sans); font-size: 2vh; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-70); margin-top: .6vh; }
+  .wait .names { font-size: 2.2vh; max-height: 12vh; overflow: hidden; margin-top: 2vh; }
+  .wait .more { margin-top: .5vh; }
+  .tv-side.off { display: none; }
+  @media (prefers-reduced-motion: reduce) { .tv-main img.new { animation: none; } }
+</style>
 </head>
 <body class="screen">
-<div class="page" id="app"><p class="muted">Carregando…</p></div>
+<div class="tv" id="app"></div>
 <script src="/socket.io/socket.io.js"></script>
 <script src="/app.js"></script>
 <script>
 (() => {
-  const { $, api, history, stage, winnersList, watch } = Bingo;
+  const { $, api, watch } = Bingo;
   const code = (new URLSearchParams(location.search).get("c") || "").toUpperCase();
   const app = document.getElementById("app");
-  let players = [], lastCount = -1;
+  let players = [], lastCount = -1, prevDraw = null, qr = null;
   if (!code) { location.href = "/"; return; }
 
   watch(code, async (s, byId) => {
     if (!s) { app.replaceChildren($("div", { class: "error" }, "Bingo apagado.")); return; }
-    if (s.status === "setup" && s.playerCount !== lastCount) { lastCount = s.playerCount; try { players = (await api("GET", "/api/games/" + code + "/players")).players; } catch {} }
+    if (s.status === "setup") {
+      if (!qr) { try { qr = await (await fetch("/api/games/" + code + "/qr.svg")).text(); } catch {} }
+      if (s.playerCount !== lastCount) { lastCount = s.playerCount; try { players = (await api("GET", "/api/games/" + code + "/players")).players; } catch {} }
+    }
     app.replaceChildren();
-    const link = location.origin + "/play?c=" + code;
+    const link = location.host + "/play?c=" + code;
+    app.append($("div", { class: "tv-head" }, $("h1", {}, s.name), $("span", { class: "brand" }, s.status === "setup" ? "Aguardando início" : s.status === "finished" ? "Encerrado" : s.grid + "×" + s.grid + " · " + (s.pattern === "full" ? "cartela cheia" : "linha, coluna ou diagonal"))));
 
     if (s.status === "setup") {
-      app.append(
-        $("div", {}, $("h1", {}, s.name), $("div", { class: "waiting" }, $("div", { class: "big" }, s.playerCount), $("div", { class: "label" }, "na sala de espera")), $("div", { class: "names" }, ...players.map((p) => $("span", {}, p.name)))),
-        $("div", { class: "side" }, $("h2", {}, "Para entrar"), $("div", { class: "code" }, code), $("p", { class: "note" }, link), $("p", { class: "note", style: "margin-top:16px" }, "Cartela " + s.grid + "×" + s.grid + " · " + (s.pattern === "full" ? "cartela cheia" : "linha, coluna ou diagonal"))));
+      const shown = players.slice(0, 40);
+      const qrBox = $("div", { class: "qr" }); if (qr) qrBox.innerHTML = qr;
+      app.append($("div", { class: "wait" },
+        $("div", { class: "join" },
+          $("div", { class: "label" }, "Entre com o código"), $("div", { class: "code" }, code), $("div", { class: "link" }, link),
+          $("div", { class: "count" }, s.playerCount, $("small", {}, s.playerCount === 1 ? "pessoa na sala" : "pessoas na sala")),
+          shown.length ? $("div", { class: "names" }, ...shown.map((p) => $("span", {}, p.name))) : null,
+          players.length > shown.length ? $("div", { class: "more" }, "e mais " + (players.length - shown.length)) : null),
+        qr ? qrBox : null));
+      app.append($("div", { class: "tv-strip" }, $("span", { class: "label" }, "Cartela " + s.grid + "×" + s.grid + " · vence por " + (s.pattern === "full" ? "cartela cheia" : "linha, coluna ou diagonal"))));
       return;
     }
-    const last = s.draws.length ? byId[s.draws[s.draws.length - 1]] : null;
-    app.append(
-      $("div", {}, $("h1", {}, s.name), stage(last, s.draws.length + " de " + s.items.length + " sorteadas", "Aguardando o sorteio"), s.status === "finished" ? $("p", { class: "note", style: "text-align:center" }, "Encerrado") : null),
-      $("div", { class: "side" },
-        s.winners.length ? $("div", {}, $("h2", {}, "Vencedores"), winnersList(s.winners)) : null,
-        $("h2", {}, "Já sorteadas (" + s.draws.length + ")"), s.draws.length ? history(s.draws, byId) : $("p", { class: "note" }, "Ainda nenhuma."),
-        $("p", { class: "note", style: "margin-top:24px" }, s.cardCount + " cartelas em jogo")));
+
+    const lastId = s.draws.length ? s.draws[s.draws.length - 1] : null;
+    const last = lastId ? byId[lastId] : null;
+    const isNew = lastId && lastId !== prevDraw; prevDraw = lastId;
+    const ord = s.draws.length;
+    app.append($("div", { class: "tv-main" },
+      last && last.img ? $("img", { src: last.img, alt: last.name, class: isNew ? "new" : null }) : $("div", { class: "empty" }, s.status === "finished" ? "Encerrado" : "Aguardando o sorteio"),
+      $("div", { class: "tv-name" }, last ? last.name : "—"),
+      $("div", { class: "tv-num" }, ...(ord ? [$("b", {}, ord + "ª"), " imagem · " + ord + " de " + s.items.length] : [s.items.length + " imagens"]))));
+
+    const w = s.winners;
+    const side = $("div", { class: "tv-side" + (w.length ? "" : " off") });
+    if (w.length) {
+      side.append($("h2", {}, "Vencedores"));
+      w.slice(0, 6).forEach((x, i) => side.append($("div", { class: "winner" }, $("b", {}, (i + 1) + "º"), $("span", { class: "grow" }, x.player), $("span", { class: "note" }, x.how))));
+      if (w.length > 6) side.append($("div", { class: "more" }, "e mais " + (w.length - 6)));
+    }
+    app.append(side);
+    app.append($("div", { class: "tv-strip" }, $("span", { class: "label" }, "Já sorteadas · " + ord),
+      $("div", { class: "items" }, ...s.draws.slice().reverse().slice(0, 14).map((id) => (byId[id] ? $("img", { src: byId[id].img, alt: byId[id].name }) : null)))));
   });
 })();
 </script>

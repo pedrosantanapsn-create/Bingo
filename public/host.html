@@ -29,7 +29,8 @@
   const code = (params.get("c") || "").toUpperCase(), token = params.get("t") || "";
   const app = document.getElementById("app");
   const H = (method, path, body) => api(method, "/api/games/" + code + path, body, { "x-host-token": token });
-  let state = null, images = {}, cards = [], players = [], autoTimer = null, autoSec = 8, openCard = null, confirmKey = null, pickMode = false, lastCounts = "";
+  let state = null, images = {}, cards = [], players = [], autoTimer = null, autoSec = 8, openCard = null, confirmKey = null, pickMode = false, lastCounts = "", namesOpen = false;
+  const screenOpts = store.get("screen:" + code) || { tema: "auto", cor: "" };
   const need = (g) => (g === 5 ? 24 : g * g);
 
   if (!code || !token) { app.replaceChildren($("div", { class: "error" }, "Link de host inválido.")); return; }
@@ -54,15 +55,32 @@
   }
   const copy = (text, msg) => navigator.clipboard?.writeText(text).then(() => toast(msg)).catch(() => toast("Copie manualmente"));
   function shareBox() {
-    const link = location.origin + "/play?c=" + code, screen = location.origin + "/tela?c=" + code;
+    const link = location.origin + "/play?c=" + code;
     return $("div", { class: "share" },
       $("div", { class: "row" }, $("span", { class: "code grow" }, code), $("button", { class: "small", onclick: () => copy(link, "Link copiado") }, "Copiar link dos jogadores")),
-      $("span", { class: "note" }, link),
-      $("div", { class: "row" }, $("span", { class: "note grow" }, "Tela para TV ou projetor: " + screen), $("a", { href: screen, target: "_blank" }, "abrir")));
+      $("span", { class: "note" }, link));
   }
   function playersList() {
     if (!players.length) return $("p", { class: "note" }, "Ninguém entrou ainda.");
-    return $("div", { class: "names" }, ...players.map((p) => $("span", {}, p.name)));
+    const many = players.length > 12;
+    return $("div", {},
+      $("div", { class: "names" + (many && !namesOpen ? " collapsed" : ""), style: "justify-content:flex-start" }, ...players.map((p) => $("span", {}, p.name))),
+      many ? $("button", { class: "names-toggle", onclick: () => { namesOpen = !namesOpen; render(); } }, namesOpen ? "Mostrar menos" : "Mostrar todos os " + players.length) : null);
+  }
+  function screenLink() {
+    const p = new URLSearchParams({ c: code });
+    if (screenOpts.tema !== "auto") p.set("tema", screenOpts.tema);
+    if (screenOpts.cor) p.set("cor", screenOpts.cor.replace("#", ""));
+    return location.origin + "/tela?" + p.toString();
+  }
+  function screenBox() {
+    const temaSel = $("select", { onchange: (e) => { screenOpts.tema = e.target.value; store.set("screen:" + code, screenOpts); render(); } },
+      ...[["auto", "Automático"], ["light", "Claro"], ["dark", "Escuro"]].map(([v, t]) => { const o = $("option", { value: v }, t); if (screenOpts.tema === v) o.selected = true; return o; }));
+    const corIn = $("input", { type: "color", value: screenOpts.cor || "#e8432a", style: "width:60px;padding:2px", onchange: (e) => { screenOpts.cor = e.target.value; store.set("screen:" + code, screenOpts); render(); } });
+    return $("div", { class: "share" },
+      $("div", { class: "row" }, $("label", { class: "grow" }, "Tema", temaSel), $("label", {}, "Cor do canal", corIn), screenOpts.cor ? $("button", { class: "small", onclick: () => { screenOpts.cor = ""; store.set("screen:" + code, screenOpts); render(); } }, "Padrão") : null),
+      $("div", { class: "row" }, $("span", { class: "note grow" }, screenLink()), $("button", { class: "small", onclick: () => copy(screenLink(), "Link da tela copiado") }, "Copiar"), $("a", { href: screenLink(), target: "_blank" }, "abrir")),
+      $("span", { class: "note" }, "No OBS: Fontes → Fonte de navegador → cole o link, 1920 × 1080."));
   }
   function cardsList(drawn) {
     if (!cards.length) return $("p", { class: "note" }, "Nenhuma cartela.");
@@ -97,6 +115,7 @@
           $("button", { class: "del", onclick: () => run(() => H("DELETE", "/items/" + it.id)) }, "excluir")))) : null);
 
       app.append($("h2", {}, "Link"), shareBox());
+      app.append($("h2", {}, "Tela da live"), screenBox());
       app.append($("h2", {}, "Sala de espera (" + s.playerCount + ")"), playersList());
 
       const playerIn = $("input", { placeholder: "Nome", maxlength: "30" });
@@ -137,6 +156,7 @@
       $("label", { class: "check", style: "margin-bottom:10px" }, $("input", { type: "checkbox", checked: s.allowJoin, onchange: (e) => run(() => H("POST", "/settings", { allowJoin: e.target.checked })) }), "Permitir entrada de novos jogadores"),
       cardsList(drawn));
     app.append($("h2", {}, "Link"), shareBox());
+    app.append($("h2", {}, "Tela da live"), screenBox());
     app.append($("h2", {}, "Controle"), $("div", { class: "row" },
       s.status === "playing" ? confirmBtn("Encerrar o bingo", "end", () => { stopAuto(); run(() => H("POST", "/status", { status: "finished" })); }) : $("button", { class: "primary", onclick: () => run(() => H("POST", "/status", { status: "playing" })) }, "Reabrir"),
       s.status === "playing" ? confirmBtn("Reiniciar sorteio", "reset", () => { stopAuto(); run(() => H("POST", "/reset")); }) : null,
