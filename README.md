@@ -35,7 +35,7 @@ Abra http://localhost:3000. No Windows (PowerShell): `$env:HOST_PASSWORD="escolh
 
 O servidor precisa rodar Node.js continuamente (não funciona em Netlify ou GitHub Pages). Opções gratuitas ou baratas:
 
-**Railway** (recomendado, mantém o banco):
+**Railway** (mantém o banco; requer plano pago):
 1. Crie um projeto a partir deste repositório no GitHub.
 2. Em *Variables*, defina `HOST_PASSWORD`.
 3. Adicione um *Volume* montado em `/data` e defina `DATA_DIR=/data`.
@@ -70,3 +70,7 @@ data/bingo.db      banco SQLite (criado automaticamente)
 - O link do painel do host contém o token; quem tiver o link controla o bingo. Não o compartilhe com jogadores.
 - Não há recuperação do link do host: se perder, crie outro bingo (o dispositivo que criou guarda os links na página inicial).
 - O SQLite embutido no Node ainda exibe um aviso de "experimental" ao iniciar; é inofensivo.
+
+## Endereço publicado
+
+https://bingo-7h74.onrender.com (Render, plano gratuito, região Virgínia).
