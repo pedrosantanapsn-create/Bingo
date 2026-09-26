@@ -3,15 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Bingo de Imagens</title>
+<title>Bingo</title>
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
 <div class="page">
-  <header><a href="/">Bingo de Imagens</a><small>Sorteio ao vivo com figuras</small></header>
+  <header><a href="/">Bingo</a></header>
 
   <h1>Entrar em um bingo</h1>
-  <p class="note">Peça o código de 5 letras para quem está organizando. Não precisa de cadastro.</p>
   <form id="joinForm" class="row">
     <label class="grow">Código do bingo<input id="code" maxlength="5" autocomplete="off" autocapitalize="characters" placeholder="Ex.: K7PQ2" required></label>
     <button class="primary" type="submit">Entrar</button>
@@ -19,12 +18,11 @@
   <div id="joinErr" class="error" hidden></div>
 
   <div id="recent" hidden>
-    <h2>Seus bingos recentes</h2>
+    <h2>Recentes</h2>
     <div id="recentList" class="list"></div>
   </div>
 
   <h2>Organizar um bingo</h2>
-  <p class="note">Somente quem tem a senha do host cria bingos. O sorteio, as cartelas e a conferência do BINGO ficam no servidor, e tudo fica salvo.</p>
   <form id="createForm" class="list">
     <div class="row">
       <label class="grow">Nome do bingo<input id="name" maxlength="40" placeholder="Ex.: Bingo da festa"></label>

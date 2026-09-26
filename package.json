@@ -1,5 +1,5 @@
 {
-  "name": "bingo-de-imagens",
+  "name": "bingo",
   "version": "1.0.0",
   "description": "Bingo de imagens em tempo real: host sorteia, jogadores acompanham na cartela.",
   "main": "server.js",

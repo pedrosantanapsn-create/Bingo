@@ -3,12 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Painel do host — Bingo de Imagens</title>
+<title>Bingo — host</title>
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
 <div class="page">
-  <header><a href="/">Bingo de Imagens</a><small>Painel do host</small></header>
+  <header><a href="/">Bingo</a><small>host</small></header>
   <div id="app"><p class="muted">Carregando…</p></div>
 </div>
 <script src="/socket.io/socket.io.js"></script>
@@ -20,7 +20,7 @@
   const code = (params.get("c") || "").toUpperCase(), token = params.get("t") || "";
   const app = document.getElementById("app");
   const H = (method, path, body) => api(method, "/api/games/" + code + path, body, token);
-  let state = null, images = {}, autoTimer = null, autoSec = 8, openCard = null, confirmKey = null;
+  let state = null, images = {}, autoTimer = null, autoSec = 8, openCard = null, confirmKey = null, pickMode = false;
   const need = (g) => (g === 5 ? 24 : g * g);
 
   if (!code || !token) { app.replaceChildren($("div", { class: "error" }, "Link de host inválido. Abra o painel pelo link que recebeu ao criar o bingo.")); return; }
@@ -71,8 +71,7 @@
         for (const f of files) { try { const img = await fileToThumb(f); await H("POST", "/items", { name: f.name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").slice(0, 30), img }); ok++; } catch (ex) { toast(f.name + ": " + ex.message); } }
         if (ok) toast(ok + " imagem(ns) adicionada(s)");
       } });
-      app.append($("h2", {}, "1. Imagens do sorteio (" + s.items.length + " de no mínimo " + need(s.grid) + ")"),
-        $("p", { class: "note" }, "Envie fotos ou figuras. Elas são reduzidas antes de subir. O nome aparece na hora do sorteio; toque para editar."),
+      app.append($("h2", {}, "1. Imagens (" + s.items.length + " de no mínimo " + need(s.grid) + ")"),
         $("div", { class: "row" }, $("button", { class: "primary", onclick: () => file.click() }, "Enviar imagens"), file),
         s.items.length ? $("div", { class: "grid-items" }, ...s.items.map((it) => $("div", { class: "tile" },
           byId[it.id] ? $("img", { src: byId[it.id].img, alt: it.name }) : $("div", { class: "empty" }),
@@ -82,12 +81,12 @@
       const playerIn = $("input", { placeholder: "Nome do jogador (opcional)", maxlength: "30" });
       const qtyIn = $("input", { type: "number", min: "1", max: "20", value: "1", style: "width:80px" });
       app.append($("h2", {}, "2. Cartelas"),
-        $("p", { class: "note" }, "Os jogadores podem entrar sozinhos pelo código e receber a cartela. Você também pode gerar cartelas aqui, por exemplo para quem está sem celular."),
         $("div", { class: "row" }, $("label", { class: "grow" }, "Jogador", playerIn), $("label", {}, "Qtd.", qtyIn),
           $("button", { disabled: s.items.length < need(s.grid) ? "" : null, onclick: () => run(async () => { await H("POST", "/cards", { player: playerIn.value, qty: qtyIn.value }); playerIn.value = ""; }) }, "Gerar")),
         cardsList(drawn));
 
-      app.append($("h2", {}, "3. Convidar e iniciar"), shareBox(),
+      app.append($("h2", {}, "3. Enviar o link e iniciar"), shareBox(),
+        $("p", { class: "note" }, "Ao iniciar, a entrada de novos jogadores é fechada."),
         $("div", { class: "row", style: "margin-top:12px" },
           $("button", { class: "primary", disabled: s.items.length < need(s.grid) ? "" : null, onclick: () => run(() => H("POST", "/status", { status: "playing" })) }, "Iniciar o bingo"),
           confirmBtn("Apagar este bingo", "del", () => run(async () => { await H("DELETE", ""); const h = (store.get("hosted") || []).filter((x) => x.code !== code); store.set("hosted", h); location.href = "/"; }))));
@@ -104,14 +103,19 @@
         $("button", { class: "primary", disabled: left < 1 ? "" : null, onclick: () => run(() => H("POST", "/draw")) }, "Sortear próxima"),
         autoTimer ? $("button", { onclick: () => { stopAuto(); render(); } }, "Pausar automático") : $("button", { disabled: left < 1 ? "" : null, onclick: startAuto }, "Automático"),
         $("label", {}, "a cada", secIn, "s"),
+        $("button", { disabled: left < 1 ? "" : null, onclick: () => { pickMode = !pickMode; render(); } }, pickMode ? "Fechar escolha" : "Escolher imagem"),
         $("button", { disabled: s.draws.length ? null : "", onclick: () => run(() => H("POST", "/undo")) }, "Desfazer última")));
+    }
+    if (s.status === "playing" && pickMode) {
+      const left = s.items.filter((it) => !drawn.has(it.id));
+      app.append($("h2", {}, "Toque na imagem para sorteá-la"), $("div", { class: "grid-items" }, ...left.map((it) => $("div", { class: "tile", style: "cursor:pointer", onclick: () => run(() => H("POST", "/draw", { itemId: it.id })) }, byId[it.id] ? $("img", { src: byId[it.id].img, alt: it.name }) : null, $("span", { class: "note" }, it.name)))));
     }
     if (s.winners.length) app.append($("h2", {}, "Vencedores"), $("div", { class: "list" }, ...s.winners.map((w, i) => $("div", { class: "winner" }, $("b", {}, (i + 1) + "º"), $("span", { class: "grow" }, w.player + " · cartela " + w.n), $("span", { class: "note" }, w.how + " · sorteio " + w.drawIndex)))));
     app.append($("h2", {}, "Já sorteadas"), s.draws.length ? history(s.draws, byId) : $("p", { class: "note" }, "Ainda nenhuma."));
     app.append($("h2", {}, "Cartelas (" + s.cards.length + ")"),
       $("label", { style: "flex-direction:row;align-items:center;gap:8px;margin-bottom:8px" }, $("input", { type: "checkbox", style: "width:auto;min-height:0", checked: s.allowJoin ? "" : null, onchange: (e) => run(() => H("POST", "/settings", { allowJoin: e.target.checked })) }), "Permitir entrada de novos jogadores"),
       cardsList(drawn));
-    app.append($("h2", {}, "Convite"), shareBox());
+    app.append($("h2", {}, "Link"), shareBox());
     app.append($("h2", {}, "Controle"), $("div", { class: "row" },
       s.status === "playing" ? confirmBtn("Encerrar o bingo", "end", () => { stopAuto(); run(() => H("POST", "/status", { status: "finished" })); }) : $("button", { class: "primary", onclick: () => run(() => H("POST", "/status", { status: "playing" })) }, "Reabrir"),
       s.status === "playing" ? confirmBtn("Reiniciar sorteio", "reset", () => { stopAuto(); run(() => H("POST", "/reset")); }) : null,

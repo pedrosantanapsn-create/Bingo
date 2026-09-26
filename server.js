@@ -1,4 +1,4 @@
-// Bingo de Imagens — servidor
+// Bingo — servidor
 // Express + Socket.io + SQLite (node:sqlite, embutido no Node 22.13+)
 import express from "express";
 import http from "node:http";
@@ -299,6 +299,7 @@ app.post("/api/games/:code/status", hostAuth, (req, res) => {
   const s = req.body?.status;
   if (!["setup", "playing", "finished"].includes(s)) return res.status(400).json({ error: "Status inválido." });
   if (s === "playing" && q.itemsMeta.all(g.id).length < cellsNeeded(g.grid)) return res.status(400).json({ error: "Imagens insuficientes para iniciar." });
+  if (s === "playing") g.allow_join = 0; // ao iniciar, ninguém mais entra
   g.status = s; saveGame(g); broadcast(g);
   res.json({ ok: true });
 });
@@ -308,7 +309,14 @@ app.post("/api/games/:code/draw", hostAuth, (req, res) => {
   const drawn = new Set(g.draws);
   const left = q.itemsMeta.all(g.id).filter((i) => !drawn.has(i.id));
   if (!left.length) return res.status(400).json({ error: "Todas as imagens já foram sorteadas." });
-  const pick = left[crypto.randomInt(left.length)]; // sorteio criptograficamente seguro, no servidor
+  let pick;
+  const chosen = req.body?.itemId;
+  if (chosen) { // host escolheu a imagem
+    pick = left.find((i) => i.id === chosen);
+    if (!pick) return res.status(400).json({ error: "Essa imagem já saiu ou não existe." });
+  } else {
+    pick = left[crypto.randomInt(left.length)]; // sorteio criptograficamente seguro, no servidor
+  }
   g.draws.push(pick.id);
   evaluateWinners(g);
   saveGame(g); broadcast(g);
@@ -352,4 +360,4 @@ io.on("connection", (socket) => {
   });
 });
 
-server.listen(PORT, () => console.log(`Bingo de Imagens rodando em http://localhost:${PORT}`));
+server.listen(PORT, () => console.log(`Bingo rodando em http://localhost:${PORT}`));

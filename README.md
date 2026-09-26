@@ -1,4 +1,4 @@
-# Bingo de Imagens
+# Bingo
 
 Site de bingo em tempo real, sem cadastro para os jogadores. Quem organiza (o host) cria o bingo com uma senha, envia as imagens que serão sorteadas e controla o sorteio; cada jogador entra com um código de 5 letras, informa o nome e recebe uma cartela. As imagens sorteadas aparecem marcadas na cartela na hora e o próprio servidor confere quem fez BINGO.
 
