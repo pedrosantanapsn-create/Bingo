@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bingo — tela</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body class="screen">
+<div class="page" id="app"><p class="muted">Carregando…</p></div>
+<script src="/socket.io/socket.io.js"></script>
+<script src="/app.js"></script>
+<script>
+(() => {
+  const { $, api, history, stage, winnersList, watch } = Bingo;
+  const code = (new URLSearchParams(location.search).get("c") || "").toUpperCase();
+  const app = document.getElementById("app");
+  let players = [], lastCount = -1;
+  if (!code) { location.href = "/"; return; }
+
+  watch(code, async (s, byId) => {
+    if (!s) { app.replaceChildren($("div", { class: "error" }, "Bingo apagado.")); return; }
+    if (s.status === "setup" && s.playerCount !== lastCount) { lastCount = s.playerCount; try { players = (await api("GET", "/api/games/" + code + "/players")).players; } catch {} }
+    app.replaceChildren();
+    const link = location.origin + "/play?c=" + code;
+
+    if (s.status === "setup") {
+      app.append(
+        $("div", {}, $("h1", {}, s.name), $("div", { class: "waiting" }, $("div", { class: "big" }, s.playerCount), $("div", { class: "label" }, "na sala de espera")), $("div", { class: "names" }, ...players.map((p) => $("span", {}, p.name)))),
+        $("div", { class: "side" }, $("h2", {}, "Para entrar"), $("div", { class: "code" }, code), $("p", { class: "note" }, link), $("p", { class: "note", style: "margin-top:16px" }, "Cartela " + s.grid + "×" + s.grid + " · " + (s.pattern === "full" ? "cartela cheia" : "linha, coluna ou diagonal"))));
+      return;
+    }
+    const last = s.draws.length ? byId[s.draws[s.draws.length - 1]] : null;
+    app.append(
+      $("div", {}, $("h1", {}, s.name), stage(last, s.draws.length + " de " + s.items.length + " sorteadas", "Aguardando o sorteio"), s.status === "finished" ? $("p", { class: "note", style: "text-align:center" }, "Encerrado") : null),
+      $("div", { class: "side" },
+        s.winners.length ? $("div", {}, $("h2", {}, "Vencedores"), winnersList(s.winners)) : null,
+        $("h2", {}, "Já sorteadas (" + s.draws.length + ")"), s.draws.length ? history(s.draws, byId) : $("p", { class: "note" }, "Ainda nenhuma."),
+        $("p", { class: "note", style: "margin-top:24px" }, s.cardCount + " cartelas em jogo")));
+  });
+})();
+</script>
+</body>
+</html>
