@@ -1,0 +1,19 @@
+{
+  "name": "bingo-de-imagens",
+  "version": "1.0.0",
+  "description": "Bingo de imagens em tempo real: host sorteia, jogadores acompanham na cartela.",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "engines": {
+    "node": ">=22.13"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "socket.io": "^4.8.1"
+  },
+  "license": "MIT"
+}

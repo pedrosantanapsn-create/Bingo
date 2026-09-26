@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sua cartela — Bingo de Imagens</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div class="page">
+  <header><a href="/">Bingo de Imagens</a><small id="hdr">Jogador</small></header>
+  <div id="app"><p class="muted">Carregando…</p></div>
+</div>
+<script src="/socket.io/socket.io.js"></script>
+<script src="/app.js"></script>
+<script>
+(() => {
+  const { $, toast, api, store, checkPattern, hits, board, history, stage, watch } = Bingo;
+  const code = (new URLSearchParams(location.search).get("c") || "").toUpperCase();
+  const app = document.getElementById("app");
+  let state = null, images = {}, cardId = store.get("card:" + code), lastBingo = null;
+
+  if (!code) { location.href = "/"; return; }
+
+  watch(code, (s, imgs) => {
+    if (!s) { app.replaceChildren($("div", { class: "error" }, "Este bingo foi encerrado e apagado pelo host."), $("a", { href: "/" }, "Voltar ao início")); return; }
+    state = s; images = imgs; render();
+  });
+
+  async function join(name) {
+    try {
+      const r = await api("POST", "/api/games/" + code + "/join", { player: name });
+      cardId = r.cardId; store.set("card:" + code, cardId);
+      const played = (store.get("played") || []).filter((p) => p.code !== code);
+      played.unshift({ code, n: r.n, name: state.name }); store.set("played", played.slice(0, 20));
+      render();
+    } catch (e) { toast(e.message); }
+  }
+
+  function render() {
+    const s = state, drawn = new Set(s.draws), byId = images;
+    app.replaceChildren();
+    document.getElementById("hdr").textContent = s.name;
+    const mine = s.cards.find((c) => c.id === cardId);
+
+    if (!mine) {
+      if (s.status === "finished") { app.append($("h1", {}, s.name), $("p", {}, "Este bingo já foi encerrado.")); return; }
+      const nameIn = $("input", { placeholder: "Seu nome", maxlength: "30", required: "" });
+      app.append($("h1", {}, s.name),
+        $("p", { class: "note" }, "Digite seu nome para receber a sua cartela. Ela é sorteada pelo servidor e fica guardada neste aparelho."),
+        $("form", { class: "row", onsubmit: (e) => { e.preventDefault(); join(nameIn.value.trim()); } }, $("label", { class: "grow" }, "Nome", nameIn), $("button", { class: "primary", type: "submit" }, "Pegar minha cartela")),
+        s.cards.length ? $("div", {}, $("h2", {}, "Já tem cartela? Escolha a sua"), $("div", { class: "list" }, ...s.cards.map((c) => $("div", { class: "line link", onclick: () => { cardId = c.id; store.set("card:" + code, cardId); render(); } }, $("span", { class: "grow" }, "Cartela " + c.n + " · " + c.player), $("span", { class: "tag" }, "escolher"))))) : null);
+      return;
+    }
+
+    const how = s.status !== "setup" ? checkPattern(mine.cells, s.grid, s.pattern, drawn) : null;
+    const rank = s.winners.findIndex((w) => w.cardId === mine.id);
+    if (how) app.append($("div", { class: "bingo" }, $("b", {}, "BINGO"), how + (rank >= 0 ? " · " + (rank + 1) + "º lugar, confirmado pelo servidor" : " · aguarde a confirmação")));
+    if (how && lastBingo !== mine.id) { lastBingo = mine.id; try { navigator.vibrate?.([200, 100, 200]); } catch {} }
+
+    const last = s.draws.length ? byId[s.draws[s.draws.length - 1]] : null;
+    app.append(stage(last, s.draws.length + " sorteadas · " + hits(mine.cells, drawn) + " de " + mine.cells.length + " na sua cartela", s.status === "setup" ? "Aguardando o host" : "Nada ainda"));
+
+    app.append($("h2", {}, "Cartela " + mine.n + " · " + mine.player),
+      $("p", { class: "note" }, "As imagens sorteadas são marcadas sozinhas. Vence quem completar " + (s.pattern === "full" ? "a cartela inteira." : "uma linha, coluna ou diagonal.")),
+      board(mine, s.grid, byId, drawn));
+    if (s.draws.length) app.append($("h2", {}, "Já sorteadas"), history(s.draws, byId));
+    if (s.winners.length) app.append($("h2", {}, "Vencedores"), $("div", { class: "list" }, ...s.winners.map((w, i) => $("div", { class: "winner" }, $("b", {}, (i + 1) + "º"), $("span", { class: "grow" }, w.player + " · cartela " + w.n), $("span", { class: "note" }, w.how)))));
+    app.append($("p", { style: "margin-top:24px" }, $("button", { class: "small", onclick: () => { cardId = null; store.set("card:" + code, null); render(); } }, "Trocar de cartela")));
+  }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Painel do host — Bingo de Imagens</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div class="page">
+  <header><a href="/">Bingo de Imagens</a><small>Painel do host</small></header>
+  <div id="app"><p class="muted">Carregando…</p></div>
+</div>
+<script src="/socket.io/socket.io.js"></script>
+<script src="/app.js"></script>
+<script>
+(() => {
+  const { $, toast, api, store, fileToThumb, hits, board, history, stage, watch, statusLabel } = Bingo;
+  const params = new URLSearchParams(location.search);
+  const code = (params.get("c") || "").toUpperCase(), token = params.get("t") || "";
+  const app = document.getElementById("app");
+  const H = (method, path, body) => api(method, "/api/games/" + code + path, body, token);
+  let state = null, images = {}, autoTimer = null, autoSec = 8, openCard = null, confirmKey = null;
+  const need = (g) => (g === 5 ? 24 : g * g);
+
+  if (!code || !token) { app.replaceChildren($("div", { class: "error" }, "Link de host inválido. Abra o painel pelo link que recebeu ao criar o bingo.")); return; }
+
+  watch(code, (s, imgs) => {
+    if (!s) { app.replaceChildren($("div", { class: "error" }, "Este bingo foi apagado."), $("a", { href: "/" }, "Voltar ao início")); return; }
+    state = s; images = imgs; render();
+  });
+
+  async function run(fn) { try { await fn(); } catch (e) { toast(e.message); } }
+  function stopAuto() { if (autoTimer) clearInterval(autoTimer); autoTimer = null; }
+  function startAuto() { stopAuto(); autoTimer = setInterval(() => run(() => H("POST", "/draw")), autoSec * 1000); render(); }
+
+  function confirmBtn(label, key, action) {
+    if (confirmKey === key) return $("span", { class: "confirm" }, "Confirmar: " + label.toLowerCase() + "?", $("button", { class: "primary small", onclick: () => { confirmKey = null; action(); } }, "Sim"), $("button", { class: "small", onclick: () => { confirmKey = null; render(); } }, "Não"));
+    return $("button", { onclick: () => { confirmKey = key; render(); } }, label);
+  }
+
+  function shareBox() {
+    const link = location.origin + "/play?c=" + code;
+    return $("div", { class: "share" },
+      $("div", {}, "Código para os jogadores: ", $("span", { class: "code" }, code)),
+      $("div", { class: "note" }, "Link direto: " + link + " "),
+      $("button", { class: "small", onclick: () => { navigator.clipboard?.writeText(link).then(() => toast("Link copiado")).catch(() => toast("Copie o link manualmente")); } }, "Copiar link"));
+  }
+
+  function cardsList(drawn) {
+    if (!state.cards.length) return $("p", { class: "note" }, "Nenhuma cartela ainda.");
+    const winners = new Set(state.winners.map((w) => w.cardId));
+    return $("div", { class: "list" }, ...state.cards.map((c) => {
+      const done = hits(c.cells, drawn), total = c.cells.length;
+      const row = $("div", { class: "line link", onclick: () => { openCard = openCard === c.id ? null : c.id; render(); } },
+        $("div", { class: "grow" }, $("h3", {}, "Cartela " + c.n + " · " + c.player), $("div", { class: "bar" }, $("span", { style: "width:" + Math.round((100 * done) / total) + "%" })), $("span", { class: "note" }, done + " de " + total + " marcadas")),
+        winners.has(c.id) ? $("span", { class: "tag fill" }, "BINGO") : null,
+        state.status === "setup" ? $("button", { class: "small", onclick: (e) => { e.stopPropagation(); run(() => H("DELETE", "/cards/" + c.id)); } }, "excluir") : null);
+      return openCard === c.id ? $("div", {}, row, board(c, state.grid, images, drawn)) : row;
+    }));
+  }
+
+  function render() {
+    const s = state, drawn = new Set(s.draws), byId = images;
+    app.replaceChildren();
+    app.append($("h1", {}, s.name), $("p", { class: "note" }, statusLabel(s.status) + " · cartela " + s.grid + "×" + s.grid + " · " + (s.pattern === "full" ? "cartela cheia" : "linha, coluna ou diagonal")));
+
+    if (s.status === "setup") {
+      const file = $("input", { type: "file", accept: "image/*", multiple: "", hidden: true, onchange: async (e) => {
+        const files = Array.from(e.target.files); e.target.value = ""; let ok = 0;
+        for (const f of files) { try { const img = await fileToThumb(f); await H("POST", "/items", { name: f.name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").slice(0, 30), img }); ok++; } catch (ex) { toast(f.name + ": " + ex.message); } }
+        if (ok) toast(ok + " imagem(ns) adicionada(s)");
+      } });
+      app.append($("h2", {}, "1. Imagens do sorteio (" + s.items.length + " de no mínimo " + need(s.grid) + ")"),
+        $("p", { class: "note" }, "Envie fotos ou figuras. Elas são reduzidas antes de subir. O nome aparece na hora do sorteio; toque para editar."),
+        $("div", { class: "row" }, $("button", { class: "primary", onclick: () => file.click() }, "Enviar imagens"), file),
+        s.items.length ? $("div", { class: "grid-items" }, ...s.items.map((it) => $("div", { class: "tile" },
+          byId[it.id] ? $("img", { src: byId[it.id].img, alt: it.name }) : $("div", { class: "empty" }),
+          $("input", { value: it.name, maxlength: "30", onchange: (e) => run(() => H("PATCH", "/items/" + it.id, { name: e.target.value })) }),
+          $("button", { class: "del", onclick: () => run(() => H("DELETE", "/items/" + it.id)) }, "excluir")))) : null);
+
+      const playerIn = $("input", { placeholder: "Nome do jogador (opcional)", maxlength: "30" });
+      const qtyIn = $("input", { type: "number", min: "1", max: "20", value: "1", style: "width:80px" });
+      app.append($("h2", {}, "2. Cartelas"),
+        $("p", { class: "note" }, "Os jogadores podem entrar sozinhos pelo código e receber a cartela. Você também pode gerar cartelas aqui, por exemplo para quem está sem celular."),
+        $("div", { class: "row" }, $("label", { class: "grow" }, "Jogador", playerIn), $("label", {}, "Qtd.", qtyIn),
+          $("button", { disabled: s.items.length < need(s.grid) ? "" : null, onclick: () => run(async () => { await H("POST", "/cards", { player: playerIn.value, qty: qtyIn.value }); playerIn.value = ""; }) }, "Gerar")),
+        cardsList(drawn));
+
+      app.append($("h2", {}, "3. Convidar e iniciar"), shareBox(),
+        $("div", { class: "row", style: "margin-top:12px" },
+          $("button", { class: "primary", disabled: s.items.length < need(s.grid) ? "" : null, onclick: () => run(() => H("POST", "/status", { status: "playing" })) }, "Iniciar o bingo"),
+          confirmBtn("Apagar este bingo", "del", () => run(async () => { await H("DELETE", ""); const h = (store.get("hosted") || []).filter((x) => x.code !== code); store.set("hosted", h); location.href = "/"; }))));
+      return;
+    }
+
+    // em andamento ou encerrado
+    const last = s.draws.length ? byId[s.draws[s.draws.length - 1]] : null;
+    app.append(stage(last, s.draws.length + " de " + s.items.length + " sorteadas"));
+    if (s.status === "playing") {
+      const left = s.items.length - s.draws.length;
+      const secIn = $("input", { type: "number", min: "3", max: "60", value: String(autoSec), onchange: (e) => { autoSec = Math.max(3, Number(e.target.value) || 8); if (autoTimer) startAuto(); } });
+      app.append($("div", { class: "controls" },
+        $("button", { class: "primary", disabled: left < 1 ? "" : null, onclick: () => run(() => H("POST", "/draw")) }, "Sortear próxima"),
+        autoTimer ? $("button", { onclick: () => { stopAuto(); render(); } }, "Pausar automático") : $("button", { disabled: left < 1 ? "" : null, onclick: startAuto }, "Automático"),
+        $("label", {}, "a cada", secIn, "s"),
+        $("button", { disabled: s.draws.length ? null : "", onclick: () => run(() => H("POST", "/undo")) }, "Desfazer última")));
+    }
+    if (s.winners.length) app.append($("h2", {}, "Vencedores"), $("div", { class: "list" }, ...s.winners.map((w, i) => $("div", { class: "winner" }, $("b", {}, (i + 1) + "º"), $("span", { class: "grow" }, w.player + " · cartela " + w.n), $("span", { class: "note" }, w.how + " · sorteio " + w.drawIndex)))));
+    app.append($("h2", {}, "Já sorteadas"), s.draws.length ? history(s.draws, byId) : $("p", { class: "note" }, "Ainda nenhuma."));
+    app.append($("h2", {}, "Cartelas (" + s.cards.length + ")"),
+      $("label", { style: "flex-direction:row;align-items:center;gap:8px;margin-bottom:8px" }, $("input", { type: "checkbox", style: "width:auto;min-height:0", checked: s.allowJoin ? "" : null, onchange: (e) => run(() => H("POST", "/settings", { allowJoin: e.target.checked })) }), "Permitir entrada de novos jogadores"),
+      cardsList(drawn));
+    app.append($("h2", {}, "Convite"), shareBox());
+    app.append($("h2", {}, "Controle"), $("div", { class: "row" },
+      s.status === "playing" ? confirmBtn("Encerrar o bingo", "end", () => { stopAuto(); run(() => H("POST", "/status", { status: "finished" })); }) : $("button", { class: "primary", onclick: () => run(() => H("POST", "/status", { status: "playing" })) }, "Reabrir"),
+      s.status === "playing" ? confirmBtn("Reiniciar sorteio", "reset", () => { stopAuto(); run(() => H("POST", "/reset")); }) : null,
+      $("button", { onclick: () => { stopAuto(); run(() => H("POST", "/status", { status: "setup" })); } }, "Voltar à preparação")));
+  }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bingo de Imagens</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div class="page">
+  <header><a href="/">Bingo de Imagens</a><small>Sorteio ao vivo com figuras</small></header>
+
+  <h1>Entrar em um bingo</h1>
+  <p class="note">Peça o código de 5 letras para quem está organizando. Não precisa de cadastro.</p>
+  <form id="joinForm" class="row">
+    <label class="grow">Código do bingo<input id="code" maxlength="5" autocomplete="off" autocapitalize="characters" placeholder="Ex.: K7PQ2" required></label>
+    <button class="primary" type="submit">Entrar</button>
+  </form>
+  <div id="joinErr" class="error" hidden></div>
+
+  <div id="recent" hidden>
+    <h2>Seus bingos recentes</h2>
+    <div id="recentList" class="list"></div>
+  </div>
+
+  <h2>Organizar um bingo</h2>
+  <p class="note">Somente quem tem a senha do host cria bingos. O sorteio, as cartelas e a conferência do BINGO ficam no servidor, e tudo fica salvo.</p>
+  <form id="createForm" class="list">
+    <div class="row">
+      <label class="grow">Nome do bingo<input id="name" maxlength="40" placeholder="Ex.: Bingo da festa"></label>
+      <label class="grow">Senha do host<input id="password" type="password" required></label>
+    </div>
+    <div class="row">
+      <label class="grow">Tamanho da cartela
+        <select id="grid"><option value="3">3 × 3 (9 imagens)</option><option value="4" selected>4 × 4 (16 imagens)</option><option value="5">5 × 5 (24 imagens, centro livre)</option></select>
+      </label>
+      <label class="grow">Como se vence
+        <select id="pattern"><option value="line">Linha, coluna ou diagonal</option><option value="full">Cartela cheia</option></select>
+      </label>
+      <button class="primary" type="submit">Criar bingo</button>
+    </div>
+  </form>
+  <div id="createErr" class="error" hidden></div>
+</div>
+<script src="/socket.io/socket.io.js"></script>
+<script src="/app.js"></script>
+<script>
+(() => {
+  const { $, api, store } = Bingo;
+  const err = (id, msg) => { const e = document.getElementById(id); e.textContent = msg || ""; e.hidden = !msg; };
+
+  document.getElementById("joinForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const code = document.getElementById("code").value.trim().toUpperCase();
+    try { await api("GET", "/api/games/" + code); location.href = "/play?c=" + code; }
+    catch (ex) { err("joinErr", ex.message); }
+  });
+
+  document.getElementById("createForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    err("createErr", "");
+    try {
+      const r = await api("POST", "/api/games", {
+        password: document.getElementById("password").value,
+        name: document.getElementById("name").value,
+        grid: document.getElementById("grid").value,
+        pattern: document.getElementById("pattern").value,
+      });
+      const hosted = store.get("hosted") || [];
+      hosted.unshift({ code: r.code, token: r.hostToken, name: document.getElementById("name").value || "Bingo", at: Date.now() });
+      store.set("hosted", hosted.slice(0, 20));
+      location.href = "/host?c=" + r.code + "&t=" + r.hostToken;
+    } catch (ex) { err("createErr", ex.message); }
+  });
+
+  // bingos que este aparelho organizou ou jogou
+  const hosted = store.get("hosted") || [], played = store.get("played") || [];
+  const list = document.getElementById("recentList");
+  for (const h of hosted) list.append($("div", { class: "line" }, $("div", { class: "grow" }, $("h3", {}, h.name), $("span", { class: "note" }, "código " + h.code + " · você é o host")), $("a", { href: "/host?c=" + h.code + "&t=" + h.token }, "abrir painel")));
+  for (const p of played) list.append($("div", { class: "line" }, $("div", { class: "grow" }, $("h3", {}, p.name || "Bingo"), $("span", { class: "note" }, "código " + p.code + " · sua cartela " + p.n)), $("a", { href: "/play?c=" + p.code }, "abrir cartela")));
+  document.getElementById("recent").hidden = !list.children.length;
+})();
+</script>
+</body>
+</html>
