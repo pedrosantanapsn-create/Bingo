@@ -46,6 +46,12 @@
     try { const [c, p, w] = await Promise.all([H("GET", "/cards"), api("GET", "/api/games/" + code + "/players"), H("GET", "/winners")]); cards = c.cards; players = p.players; winners = w.winners; } catch (e) { toast(e.message); }
   }
   async function run(fn) { try { await fn(); } catch (e) { toast(e.message); } }
+  document.addEventListener("keydown", (e) => {
+    if (!state || state.status !== "playing" || /INPUT|SELECT|TEXTAREA/.test(e.target.tagName)) return;
+    if (e.code === "Space" || e.key === "Enter") { e.preventDefault(); run(() => H("POST", "/draw")); }
+    else if (e.key === "z" || e.key === "Backspace") { e.preventDefault(); run(() => H("POST", "/undo")); }
+    else if (e.key === "a") { autoTimer ? (stopAuto(), render()) : startAuto(); }
+  });
   function stopAuto() { if (autoTimer) clearInterval(autoTimer); autoTimer = null; }
   function startAuto() { stopAuto(); autoTimer = setInterval(() => run(() => H("POST", "/draw")), autoSec * 1000); render(); }
 
@@ -99,26 +105,28 @@
     const s = state, drawn = new Set(s.draws), byId = images;
     app.replaceChildren();
     app.append($("h1", {}, s.name), $("p", { class: "note" }, statusLabel(s.status) + " · " + s.grid + "×" + s.grid + " · " + (s.pattern === "full" ? "cartela cheia" : "linha, coluna ou diagonal")));
+    const L = $("div", { class: "col" }), R = $("div", { class: "col" });
+    app.append($("div", { class: "cols" }, L, R));
 
     if (s.status === "setup") {
-      app.append($("div", { class: "stats" }, $("div", {}, $("b", {}, s.items.length), $("span", {}, "imagens (mín. " + need(s.grid) + ")")), $("div", {}, $("b", {}, s.playerCount), $("span", {}, "na sala de espera"))));
+      L.append($("div", { class: "stats" }, $("div", {}, $("b", {}, s.items.length), $("span", {}, "imagens (mín. " + need(s.grid) + ")")), $("div", {}, $("b", {}, s.playerCount), $("span", {}, "na sala de espera"))));
       const file = $("input", { type: "file", accept: "image/*", multiple: "", hidden: true, onchange: async (e) => {
         const files = Array.from(e.target.files); e.target.value = ""; let ok = 0;
         for (const f of files) { try { const img = await fileToThumb(f); await H("POST", "/items", { name: f.name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").slice(0, 30), img }); ok++; } catch (ex) { toast(f.name + ": " + ex.message); } }
         if (ok) toast(ok + " imagem(ns) adicionada(s)");
       } });
-      app.append($("h2", {}, "Imagens"),
+      L.append($("h2", {}, "Imagens"),
         $("div", { class: "row" }, $("button", { class: "primary", onclick: () => file.click() }, "Enviar imagens"), file),
         s.items.length ? $("div", { class: "grid-items", style: "margin-top:14px" }, ...s.items.map((it) => $("div", { class: "tile" },
           byId[it.id] ? $("img", { src: byId[it.id].img, alt: it.name }) : $("div", { class: "empty" }),
           $("input", { value: it.name, maxlength: "30", onchange: (e) => run(() => H("PATCH", "/items/" + it.id, { name: e.target.value })) }),
           $("button", { class: "del", onclick: () => run(() => H("DELETE", "/items/" + it.id)) }, "excluir")))) : null);
 
-      app.append($("h2", {}, "Link"), shareBox());
-      app.append($("h2", {}, "Tela da live"), screenBox());
-      app.append($("h2", {}, "Sala de espera (" + s.playerCount + ")"), playersList());
+      R.append($("h2", {}, "Link"), shareBox());
+      R.append($("h2", {}, "Sala de espera (" + s.playerCount + ")"), playersList());
+      R.append($("h2", {}, "Tela da live"), screenBox());
 
-      app.append($("h2", {}, "Iniciar"),
+      R.append($("h2", {}, "Iniciar"),
         $("p", { class: "note" }, "Cada pessoa da sala de espera recebe a sua cartela e a entrada é fechada."),
         $("div", { class: "row" },
           $("button", { class: "primary", disabled: s.items.length < need(s.grid), onclick: () => run(() => H("POST", "/status", { status: "playing" })) }, "Iniciar o bingo"),
@@ -127,25 +135,26 @@
     }
 
     const last = s.draws.length ? byId[s.draws[s.draws.length - 1]] : null;
-    app.append(stage(last, s.draws.length + " de " + s.items.length + " sorteadas"));
+    L.append(stage(last, s.draws.length + " de " + s.items.length + " sorteadas"));
     if (s.status === "playing") {
       const left = s.items.length - s.draws.length;
       const secIn = $("input", { type: "number", min: "3", max: "60", value: String(autoSec), onchange: (e) => { autoSec = Math.max(3, Number(e.target.value) || 8); if (autoTimer) startAuto(); } });
-      app.append($("div", { class: "controls" },
+      L.append($("div", { class: "controls" },
         $("button", { class: "primary", disabled: left < 1, onclick: () => run(() => H("POST", "/draw")) }, "Sortear próxima"),
         autoTimer ? $("button", { onclick: () => { stopAuto(); render(); } }, "Pausar") : $("button", { disabled: left < 1, onclick: startAuto }, "Automático"),
         $("label", {}, "a cada", secIn, "s"),
         $("button", { disabled: left < 1, onclick: () => { pickMode = !pickMode; render(); } }, pickMode ? "Fechar escolha" : "Escolher imagem"),
-        $("button", { disabled: !s.draws.length, onclick: () => run(() => H("POST", "/undo")) }, "Desfazer")));
+        $("button", { disabled: !s.draws.length, onclick: () => run(() => H("POST", "/undo")) }, "Desfazer")),
+        $("p", { class: "note kbd" }, "Teclado: espaço sorteia · Z desfaz · A liga o automático"));
       if (pickMode) {
         const rest = s.items.filter((it) => !drawn.has(it.id));
-        app.append($("h2", {}, "Toque na imagem para sorteá-la"), $("div", { class: "grid-items" }, ...rest.map((it) => $("div", { class: "tile pick", onclick: () => run(() => H("POST", "/draw", { itemId: it.id })) }, byId[it.id] ? $("img", { src: byId[it.id].img, alt: it.name }) : null, $("span", { class: "note" }, it.name)))));
+        L.append($("h2", {}, "Toque na imagem para sorteá-la"), $("div", { class: "grid-items" }, ...rest.map((it) => $("div", { class: "tile pick", onclick: () => run(() => H("POST", "/draw", { itemId: it.id })) }, byId[it.id] ? $("img", { src: byId[it.id].img, alt: it.name }) : null, $("span", { class: "note" }, it.name)))));
       }
     }
     if (winners.length) {
       const wset = new Set(winners.map((w) => w.cardId));
       const byCard = Object.fromEntries(cards.map((c) => [c.id, c]));
-      app.append($("h2", {}, "Vencedores (só você vê)"),
+      L.append($("h2", {}, "Vencedores (só você vê)"),
         $("label", { class: "check", style: "margin-bottom:12px" }, $("input", { type: "checkbox", checked: s.winnersShown, onchange: (e) => run(() => H("POST", "/settings", { showWinners: e.target.checked })) }), "Mostrar os vencedores na tela da live e para os jogadores"),
         $("div", { class: "list" }, ...winners.map((w, i) => {
           const c = byCard[w.cardId];
@@ -156,13 +165,13 @@
           return openWinner === w.cardId && c ? $("div", {}, row, board(c, s.grid, images, drawn)) : row;
         })));
     }
-    app.append($("h2", {}, "Já sorteadas"), s.draws.length ? history(s.draws, byId) : $("p", { class: "note" }, "Ainda nenhuma."));
-    app.append($("h2", {}, "Cartelas (" + cards.length + ")"),
+    L.append($("h2", {}, "Já sorteadas"), s.draws.length ? history(s.draws, byId) : $("p", { class: "note" }, "Ainda nenhuma."));
+    R.append($("h2", {}, "Cartelas (" + cards.length + ")"),
       $("label", { class: "check", style: "margin-bottom:10px" }, $("input", { type: "checkbox", checked: s.allowJoin, onchange: (e) => run(() => H("POST", "/settings", { allowJoin: e.target.checked })) }), "Permitir entrada de novos jogadores"),
       cardsList(drawn));
-    app.append($("h2", {}, "Link"), shareBox());
-    app.append($("h2", {}, "Tela da live"), screenBox());
-    app.append($("h2", {}, "Controle"), $("div", { class: "row" },
+    R.append($("h2", {}, "Link"), shareBox());
+    R.append($("h2", {}, "Tela da live"), screenBox());
+    R.append($("h2", {}, "Controle"), $("div", { class: "row" },
       s.status === "playing" ? confirmBtn("Encerrar o bingo", "end", () => { stopAuto(); run(() => H("POST", "/status", { status: "finished" })); }) : $("button", { class: "primary", onclick: () => run(() => H("POST", "/status", { status: "playing" })) }, "Reabrir"),
       s.status === "playing" ? confirmBtn("Reiniciar sorteio", "reset", () => { stopAuto(); run(() => H("POST", "/reset")); }) : null,
       $("button", { onclick: () => { stopAuto(); run(() => H("POST", "/status", { status: "setup" })); } }, "Voltar à preparação")));

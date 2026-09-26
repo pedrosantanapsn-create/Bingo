@@ -78,12 +78,14 @@
     if (how) app.append($("div", { class: "bingo" + (fresh ? " pulse" : "") }, $("b", {}, "Bingo"), how + (rank >= 0 ? " · " + (rank + 1) + "º lugar" : " · avise o host")));
     if (fresh) { lastBingo = mine.id; try { navigator.vibrate?.([200, 100, 200]); } catch {} }
 
+    const L = $("div", { class: "col" }), R = $("div", { class: "col" });
+    app.append($("div", { class: "cols" }, L, R));
     const last = s.draws.length ? byId[s.draws[s.draws.length - 1]] : null;
-    app.append(stage(last, s.draws.length + " sorteadas · " + hits(mine.cells, drawn) + " de " + mine.cells.length + " na sua cartela", "Aguardando"));
-    app.append($("h2", {}, "Cartela " + mine.n + " · " + mine.player), board(mine, s.grid, byId, drawn));
-    cards.slice(1).forEach((c) => app.append($("h2", {}, "Cartela " + c.n), board(c, s.grid, byId, drawn)));
-    if (s.draws.length) app.append($("h2", {}, "Já sorteadas"), history(s.draws, byId));
-    if (s.winners.length) app.append($("h2", {}, "Vencedores"), winnersList(s.winners));
+    R.append(stage(last, s.draws.length + " sorteadas · " + hits(mine.cells, drawn) + " de " + mine.cells.length + " na sua cartela", "Aguardando"));
+    L.append($("h2", {}, "Cartela " + mine.n + " · " + mine.player), board(mine, s.grid, byId, drawn));
+    cards.slice(1).forEach((c) => L.append($("h2", {}, "Cartela " + c.n), board(c, s.grid, byId, drawn)));
+    if (s.draws.length) R.append($("h2", {}, "Já sorteadas"), history(s.draws, byId));
+    if (s.winners.length) R.append($("h2", {}, "Vencedores"), winnersList(s.winners));
   }
 })();
 </script>

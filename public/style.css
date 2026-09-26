@@ -133,6 +133,27 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 .check { flex-direction: row; align-items: center; gap: 10px; text-transform: none; letter-spacing: 0; font-size: .95rem; color: var(--ink); }
 .check input { width: 20px; height: 20px; min-height: 0; padding: 0; accent-color: var(--ink); }
 [hidden] { display: none !important; }
+/* computador */
+.kbd { display: none; text-align: center; margin-top: 4px; }
+@media (min-width: 960px) {
+  .page { max-width: 1180px; padding: 28px 40px 72px; }
+  header { margin-bottom: 36px; }
+  h1 { font-size: 2.3rem; }
+  .cols { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 0 56px; align-items: start; }
+  .cols .col > h2:first-child { margin-top: 8px; }
+  .col { min-width: 0; }
+  .board { max-width: 560px; }
+  .stage img, .stage .empty { width: min(30vw, 300px); }
+  .grid-items { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
+  .hero { padding: 64px 0 24px; }
+  .hero h1 { font-size: 3rem; }
+  .hero form { max-width: 440px; }
+  details.organize { max-width: 760px; margin-left: auto; margin-right: auto; }
+  .kbd { display: block; }
+  .line.link:hover { background: var(--ink-15); }
+  .history img { width: 56px; height: 56px; }
+}
+@media (min-width: 1400px) { .page { max-width: 1320px; } }
 @media (prefers-reduced-motion: reduce) { .stage img.new, .cell.hit::after, .bingo.pulse { animation: none; } }
 /* página inicial */
 .hero { text-align: center; padding: 24px 0 8px; }
