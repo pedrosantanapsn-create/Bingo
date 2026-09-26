@@ -102,7 +102,7 @@
         $("p", { class: "note" }, "Cada pessoa da sala de espera recebe a sua cartela e a entrada é fechada."),
         $("div", { class: "row" },
           $("button", { class: "primary", disabled: s.items.length < need(s.grid), onclick: () => run(() => H("POST", "/status", { status: "playing" })) }, "Iniciar o bingo"),
-          confirmBtn("Apagar este bingo", "del", () => run(async () => { await H("DELETE", ""); store.set("hosted", (store.get("hosted") || []).filter((x) => x.code !== code)); location.href = "/"; }))));
+          confirmBtn("Apagar este bingo", "del", () => run(async () => { await H("DELETE", ""); location.href = "/"; }))));
       return;
     }
 

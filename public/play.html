@@ -36,8 +36,6 @@
     try {
       const r = await api("POST", "/api/games/" + code + "/join", { player: name });
       me = { id: r.playerId, token: r.playerToken, name: r.name }; store.set("player:" + code, me);
-      const played = (store.get("played") || []).filter((p) => p.code !== code);
-      played.unshift({ code, player: r.name, name: state.name }); store.set("played", played.slice(0, 20));
       await loadMe(); render();
     } catch (e) { toast(e.message); }
   }

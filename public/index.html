@@ -17,11 +17,6 @@
   </form>
   <div id="joinErr" class="error" hidden></div>
 
-  <div id="recent" hidden>
-    <h2>Recentes</h2>
-    <div id="recentList" class="list"></div>
-  </div>
-
   <h2>Organizar</h2>
   <form id="createForm" class="list" style="gap:12px">
     <div class="row">
@@ -43,7 +38,7 @@
 <script src="/app.js"></script>
 <script>
 (() => {
-  const { $, api, store } = Bingo;
+  const { api } = Bingo;
   const err = (id, msg) => { const e = document.getElementById(id); e.textContent = msg || ""; e.hidden = !msg; };
 
   document.getElementById("joinForm").addEventListener("submit", async (e) => {
@@ -58,18 +53,9 @@
     try {
       const name = document.getElementById("name").value || "Bingo";
       const r = await api("POST", "/api/games", { name, grid: document.getElementById("grid").value, pattern: document.getElementById("pattern").value });
-      const hosted = store.get("hosted") || [];
-      hosted.unshift({ code: r.code, token: r.hostToken, name, at: Date.now() });
-      store.set("hosted", hosted.slice(0, 20));
       location.href = "/host?c=" + r.code + "&t=" + r.hostToken;
     } catch (ex) { err("createErr", ex.message); }
   });
-
-  const hosted = store.get("hosted") || [], played = store.get("played") || [];
-  const list = document.getElementById("recentList");
-  for (const h of hosted) list.append($("div", { class: "line" }, $("div", { class: "grow" }, $("h3", {}, h.name), $("span", { class: "note" }, h.code + " · host")), $("a", { href: "/host?c=" + h.code + "&t=" + h.token }, "painel")));
-  for (const p of played) list.append($("div", { class: "line" }, $("div", { class: "grow" }, $("h3", {}, p.name || "Bingo"), $("span", { class: "note" }, p.code + " · " + p.player)), $("a", { href: "/play?c=" + p.code }, "cartela")));
-  document.getElementById("recent").hidden = !list.children.length;
 })();
 </script>
 </body>
