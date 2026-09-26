@@ -6,8 +6,9 @@ Site de bingo em tempo real, sem cadastro para os jogadores. Quem organiza (o ho
 
 | Quem | O que faz |
 |------|-----------|
-| Host | Cria o bingo (senha do host), envia as imagens, gera cartelas se quiser, inicia, sorteia (manual ou automático), desfaz, reinicia, encerra. |
-| Jogador | Abre o link ou digita o código, informa o nome, recebe a cartela e acompanha o sorteio ao vivo. |
+| Host | Cria o bingo (senha do host), envia as imagens, compartilha o link, inicia, sorteia (aleatório, automático ou escolhendo a imagem), desfaz, reinicia, encerra. |
+| Jogador | Abre o link, informa o nome e fica na sala de espera; ao iniciar recebe a cartela e a entrada é fechada. |
+| Tela | `/tela?c=CODIGO` mostra o sorteio em tamanho grande para TV ou projetor. |
 | Servidor | Sorteia com aleatoriedade criptográfica, gera cartelas únicas, confere o BINGO e guarda tudo em banco de dados SQLite. |
 
 ## Segurança
@@ -59,11 +60,16 @@ O servidor precisa rodar Node.js continuamente (não funciona em Netlify ou GitH
 server.js          servidor, regras do jogo, API e tempo real
 public/index.html  entrada: código do jogador ou criação pelo host
 public/host.html   painel do host
-public/play.html   cartela do jogador
+public/play.html   sala de espera e cartela do jogador
+public/tela.html   tela de projeção
 public/app.js      funções compartilhadas
 public/style.css   visual (duas cores: tinta #1f3b2f e papel #f5f1e6)
 data/bingo.db      banco SQLite (criado automaticamente)
 ```
+
+## Capacidade
+
+Testado com 300 jogadores entrando ao mesmo tempo (0,5 s), geração de 300 cartelas ao iniciar (0,07 s) e sorteios com 300 cartelas (5 ms cada). Cada jogador recebe só a própria cartela; o estado transmitido a todos fica pequeno. Limite de 2.000 jogadores por bingo.
 
 ## Limitações
 

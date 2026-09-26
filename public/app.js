@@ -8,6 +8,7 @@ window.Bingo = (() => {
       else if (k.startsWith("on")) el.addEventListener(k.slice(2), attrs[k]);
       else if (k === "hidden") el.hidden = !!attrs[k];
       else if (k === "value") el.value = attrs[k];
+      else if (k === "checked") el.checked = true;
       else el.setAttribute(k, attrs[k]);
     }
     for (const kid of kids.flat()) if (kid != null) el.append(kid.nodeType ? kid : document.createTextNode(String(kid)));
@@ -21,11 +22,8 @@ window.Bingo = (() => {
     get(k) { try { return JSON.parse(localStorage.getItem("bingo:" + k)); } catch { return null; } },
     set(k, v) { try { localStorage.setItem("bingo:" + k, JSON.stringify(v)); } catch {} },
   };
-  async function api(method, url, body, hostToken) {
-    const r = await fetch(url, {
-      method, headers: Object.assign({ "Content-Type": "application/json" }, hostToken ? { "x-host-token": hostToken } : {}),
-      body: body ? JSON.stringify(body) : undefined,
-    });
+  async function api(method, url, body, headers) {
+    const r = await fetch(url, { method, headers: Object.assign({ "Content-Type": "application/json" }, headers || {}), body: body ? JSON.stringify(body) : undefined });
     const data = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(data.error || "Erro " + r.status);
     return data;
@@ -56,7 +54,7 @@ window.Bingo = (() => {
   function board(card, grid, byId, drawnSet) {
     const b = $("div", { class: "board", style: "grid-template-columns:repeat(" + grid + ",1fr)" });
     card.cells.forEach((cid) => {
-      if (cid === null) { b.append($("div", { class: "cell free hit" }, "LIVRE")); return; }
+      if (cid === null) { b.append($("div", { class: "cell free hit" }, "Livre")); return; }
       const it = byId[cid];
       const cell = $("div", { class: "cell" + (drawnSet.has(cid) ? " hit" : "") });
       if (it) cell.append($("img", { src: it.img, alt: it.name }), $("div", { class: "cap" }, it.name));
@@ -64,19 +62,16 @@ window.Bingo = (() => {
     });
     return b;
   }
-  function history(draws, byId) {
-    return $("div", { class: "history" }, ...draws.slice().reverse().map((id) => (byId[id] ? $("img", { src: byId[id].img, alt: byId[id].name, title: byId[id].name }) : null)));
-  }
-  function stage(last, sub, extra) {
-    return $("div", { class: "stage" },
-      last && last.img ? $("img", { src: last.img, alt: last.name }) : $("div", { class: "empty" }, extra || "Nada sorteado"),
-      $("div", { class: "name" }, last ? last.name : "—"),
-      $("div", { class: "count" }, sub));
-  }
-  // acompanha o jogo em tempo real; carrega as imagens só quando mudam
+  const history = (draws, byId) => $("div", { class: "history" }, ...draws.slice().reverse().map((id) => (byId[id] ? $("img", { src: byId[id].img, alt: byId[id].name, title: byId[id].name }) : null)));
+  const stage = (last, sub, emptyText) => $("div", { class: "stage" },
+    last && last.img ? $("img", { src: last.img, alt: last.name }) : $("div", { class: "empty" }, emptyText || "Nada sorteado"),
+    $("div", { class: "name" }, last ? last.name : "—"),
+    $("div", { class: "count" }, sub));
+  const winnersList = (winners, detail) => $("div", {}, ...winners.map((w, i) => $("div", { class: "winner" }, $("b", {}, (i + 1) + "º"), $("span", { class: "grow" }, w.player + " · cartela " + w.n), $("span", { class: "note" }, detail ? w.how + " · sorteio " + w.drawIndex : w.how))));
+  // acompanha o jogo em tempo real; as imagens só são baixadas quando mudam
   function watch(code, onState) {
     let itemsVersion = -1, images = {};
-    const socket = io();
+    const socket = io({ transports: ["websocket", "polling"] });
     const deliver = async (state) => {
       if (state.itemsVersion !== itemsVersion) {
         try { const r = await api("GET", "/api/games/" + code + "/items"); itemsVersion = r.itemsVersion; images = {}; for (const it of r.items) images[it.id] = it; } catch {}
@@ -88,7 +83,6 @@ window.Bingo = (() => {
     socket.on("gone", () => onState(null, {}));
     return socket;
   }
-  const fmt = (iso) => { try { return new Date(iso).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }); } catch { return ""; } };
-  const statusLabel = (s) => (s === "playing" ? "Em andamento" : s === "setup" ? "Em preparação" : "Encerrado");
-  return { $, toast, store, api, fileToThumb, checkPattern, hits, board, history, stage, watch, fmt, statusLabel };
+  const statusLabel = (s) => (s === "playing" ? "Em andamento" : s === "setup" ? "Aguardando início" : "Encerrado");
+  return { $, toast, store, api, fileToThumb, checkPattern, hits, board, history, stage, winnersList, watch, statusLabel };
 })();

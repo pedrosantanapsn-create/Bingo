@@ -10,9 +10,9 @@
 <div class="page">
   <header><a href="/">Bingo</a></header>
 
-  <h1>Entrar em um bingo</h1>
+  <h1>Entrar</h1>
   <form id="joinForm" class="row">
-    <label class="grow">Código do bingo<input id="code" maxlength="5" autocomplete="off" autocapitalize="characters" placeholder="Ex.: K7PQ2" required></label>
+    <label class="grow">Código<input id="code" maxlength="5" autocomplete="off" autocapitalize="characters" placeholder="5 letras" required></label>
     <button class="primary" type="submit">Entrar</button>
   </form>
   <div id="joinErr" class="error" hidden></div>
@@ -22,20 +22,20 @@
     <div id="recentList" class="list"></div>
   </div>
 
-  <h2>Organizar um bingo</h2>
-  <form id="createForm" class="list">
+  <h2>Organizar</h2>
+  <form id="createForm" class="list" style="gap:12px">
     <div class="row">
-      <label class="grow">Nome do bingo<input id="name" maxlength="40" placeholder="Ex.: Bingo da festa"></label>
+      <label class="grow">Nome<input id="name" maxlength="40" placeholder="Bingo"></label>
       <label class="grow">Senha do host<input id="password" type="password" required></label>
     </div>
     <div class="row">
-      <label class="grow">Tamanho da cartela
+      <label class="grow">Cartela
         <select id="grid"><option value="3">3 × 3 (9 imagens)</option><option value="4" selected>4 × 4 (16 imagens)</option><option value="5">5 × 5 (24 imagens, centro livre)</option></select>
       </label>
-      <label class="grow">Como se vence
+      <label class="grow">Vitória
         <select id="pattern"><option value="line">Linha, coluna ou diagonal</option><option value="full">Cartela cheia</option></select>
       </label>
-      <button class="primary" type="submit">Criar bingo</button>
+      <button class="primary" type="submit">Criar</button>
     </div>
   </form>
   <div id="createErr" class="error" hidden></div>
@@ -55,27 +55,21 @@
   });
 
   document.getElementById("createForm").addEventListener("submit", async (e) => {
-    e.preventDefault();
-    err("createErr", "");
+    e.preventDefault(); err("createErr", "");
     try {
-      const r = await api("POST", "/api/games", {
-        password: document.getElementById("password").value,
-        name: document.getElementById("name").value,
-        grid: document.getElementById("grid").value,
-        pattern: document.getElementById("pattern").value,
-      });
+      const name = document.getElementById("name").value || "Bingo";
+      const r = await api("POST", "/api/games", { password: document.getElementById("password").value, name, grid: document.getElementById("grid").value, pattern: document.getElementById("pattern").value });
       const hosted = store.get("hosted") || [];
-      hosted.unshift({ code: r.code, token: r.hostToken, name: document.getElementById("name").value || "Bingo", at: Date.now() });
+      hosted.unshift({ code: r.code, token: r.hostToken, name, at: Date.now() });
       store.set("hosted", hosted.slice(0, 20));
       location.href = "/host?c=" + r.code + "&t=" + r.hostToken;
     } catch (ex) { err("createErr", ex.message); }
   });
 
-  // bingos que este aparelho organizou ou jogou
   const hosted = store.get("hosted") || [], played = store.get("played") || [];
   const list = document.getElementById("recentList");
-  for (const h of hosted) list.append($("div", { class: "line" }, $("div", { class: "grow" }, $("h3", {}, h.name), $("span", { class: "note" }, "código " + h.code + " · você é o host")), $("a", { href: "/host?c=" + h.code + "&t=" + h.token }, "abrir painel")));
-  for (const p of played) list.append($("div", { class: "line" }, $("div", { class: "grow" }, $("h3", {}, p.name || "Bingo"), $("span", { class: "note" }, "código " + p.code + " · sua cartela " + p.n)), $("a", { href: "/play?c=" + p.code }, "abrir cartela")));
+  for (const h of hosted) list.append($("div", { class: "line" }, $("div", { class: "grow" }, $("h3", {}, h.name), $("span", { class: "note" }, h.code + " · host")), $("a", { href: "/host?c=" + h.code + "&t=" + h.token }, "painel")));
+  for (const p of played) list.append($("div", { class: "line" }, $("div", { class: "grow" }, $("h3", {}, p.name || "Bingo"), $("span", { class: "note" }, p.code + " · " + p.player)), $("a", { href: "/play?c=" + p.code }, "cartela")));
   document.getElementById("recent").hidden = !list.children.length;
 })();
 </script>

@@ -15,25 +15,30 @@
 <script src="/app.js"></script>
 <script>
 (() => {
-  const { $, toast, api, store, checkPattern, hits, board, history, stage, watch } = Bingo;
+  const { $, toast, api, store, checkPattern, hits, board, history, stage, winnersList, watch } = Bingo;
   const code = (new URLSearchParams(location.search).get("c") || "").toUpperCase();
   const app = document.getElementById("app");
-  let state = null, images = {}, cardId = store.get("card:" + code), lastBingo = null;
+  let state = null, images = {}, me = store.get("player:" + code), cards = [], lastStatus = null, lastBingo = null;
 
   if (!code) { location.href = "/"; return; }
 
-  watch(code, (s, imgs) => {
-    if (!s) { app.replaceChildren($("div", { class: "error" }, "Este bingo foi encerrado e apagado pelo host."), $("a", { href: "/" }, "Voltar ao início")); return; }
-    state = s; images = imgs; render();
+  watch(code, async (s, imgs) => {
+    if (!s) { app.replaceChildren($("div", { class: "error" }, "Este bingo foi apagado pelo host."), $("a", { href: "/" }, "Início")); return; }
+    state = s; images = imgs;
+    if (me && (s.status !== lastStatus || (s.status !== "setup" && !cards.length))) { lastStatus = s.status; await loadMe(); }
+    render();
   });
-
+  async function loadMe() {
+    try { const r = await api("GET", "/api/games/" + code + "/me?player=" + me.id, null, { "x-player-token": me.token }); cards = r.cards; me.name = r.name; }
+    catch { me = null; store.set("player:" + code, null); cards = []; }
+  }
   async function join(name) {
     try {
       const r = await api("POST", "/api/games/" + code + "/join", { player: name });
-      cardId = r.cardId; store.set("card:" + code, cardId);
+      me = { id: r.playerId, token: r.playerToken, name: r.name }; store.set("player:" + code, me);
       const played = (store.get("played") || []).filter((p) => p.code !== code);
-      played.unshift({ code, n: r.n, name: state.name }); store.set("played", played.slice(0, 20));
-      render();
+      played.unshift({ code, player: r.name, name: state.name }); store.set("played", played.slice(0, 20));
+      await loadMe(); render();
     } catch (e) { toast(e.message); }
   }
 
@@ -41,31 +46,36 @@
     const s = state, drawn = new Set(s.draws), byId = images;
     app.replaceChildren();
     document.getElementById("hdr").textContent = s.name;
-    const mine = s.cards.find((c) => c.id === cardId);
 
-    if (!mine) {
+    if (!me) {
       if (s.status === "finished") { app.append($("h1", {}, s.name), $("p", {}, "Este bingo já foi encerrado.")); return; }
       if (!s.allowJoin) { app.append($("h1", {}, s.name), $("p", {}, "O bingo já começou e a entrada foi fechada.")); return; }
       const nameIn = $("input", { placeholder: "Seu nome", maxlength: "30", required: "" });
       app.append($("h1", {}, s.name),
-        $("form", { class: "row", onsubmit: (e) => { e.preventDefault(); join(nameIn.value.trim()); } }, $("label", { class: "grow" }, "Nome", nameIn), $("button", { class: "primary", type: "submit" }, "Pegar minha cartela")),
-        s.cards.length ? $("div", {}, $("h2", {}, "Já tem cartela? Escolha a sua"), $("div", { class: "list" }, ...s.cards.map((c) => $("div", { class: "line link", onclick: () => { cardId = c.id; store.set("card:" + code, cardId); render(); } }, $("span", { class: "grow" }, "Cartela " + c.n + " · " + c.player), $("span", { class: "tag" }, "escolher"))))) : null);
+        $("form", { class: "row", onsubmit: (e) => { e.preventDefault(); join(nameIn.value.trim()); } }, $("label", { class: "grow" }, "Nome", nameIn), $("button", { class: "primary", type: "submit" }, "Entrar")),
+        $("p", { class: "note", style: "margin-top:10px" }, s.playerCount + (s.playerCount === 1 ? " pessoa" : " pessoas") + " na sala de espera"));
       return;
     }
 
-    const how = s.status !== "setup" ? checkPattern(mine.cells, s.grid, s.pattern, drawn) : null;
+    if (s.status === "setup" || !cards.length) {
+      app.append($("h1", {}, s.name),
+        $("div", { class: "waiting" }, $("div", { class: "big" }, s.playerCount), $("div", { class: "label" }, "na sala de espera"), $("p", { style: "margin-top:20px" }, "Olá, " + me.name + ". Sua cartela aparece assim que o host iniciar.")),
+        $("p", {}, $("button", { class: "small", onclick: () => { me = null; store.set("player:" + code, null); render(); } }, "Sair")));
+      return;
+    }
+
+    const mine = cards[0];
+    const how = checkPattern(mine.cells, s.grid, s.pattern, drawn);
     const rank = s.winners.findIndex((w) => w.cardId === mine.id);
-    if (how) app.append($("div", { class: "bingo" }, $("b", {}, "BINGO"), how + (rank >= 0 ? " · " + (rank + 1) + "º lugar, confirmado pelo servidor" : " · aguarde a confirmação")));
+    if (how) app.append($("div", { class: "bingo" }, $("b", {}, "Bingo"), how + (rank >= 0 ? " · " + (rank + 1) + "º lugar" : " · aguarde a confirmação")));
     if (how && lastBingo !== mine.id) { lastBingo = mine.id; try { navigator.vibrate?.([200, 100, 200]); } catch {} }
 
     const last = s.draws.length ? byId[s.draws[s.draws.length - 1]] : null;
-    app.append(stage(last, s.draws.length + " sorteadas · " + hits(mine.cells, drawn) + " de " + mine.cells.length + " na sua cartela", s.status === "setup" ? "Aguardando o host" : "Nada ainda"));
-
-    app.append($("h2", {}, "Cartela " + mine.n + " · " + mine.player),
-      board(mine, s.grid, byId, drawn));
+    app.append(stage(last, s.draws.length + " sorteadas · " + hits(mine.cells, drawn) + " de " + mine.cells.length + " na sua cartela", "Aguardando"));
+    app.append($("h2", {}, "Cartela " + mine.n + " · " + mine.player), board(mine, s.grid, byId, drawn));
+    cards.slice(1).forEach((c) => app.append($("h2", {}, "Cartela " + c.n), board(c, s.grid, byId, drawn)));
     if (s.draws.length) app.append($("h2", {}, "Já sorteadas"), history(s.draws, byId));
-    if (s.winners.length) app.append($("h2", {}, "Vencedores"), $("div", { class: "list" }, ...s.winners.map((w, i) => $("div", { class: "winner" }, $("b", {}, (i + 1) + "º"), $("span", { class: "grow" }, w.player + " · cartela " + w.n), $("span", { class: "note" }, w.how)))));
-    app.append($("p", { style: "margin-top:24px" }, $("button", { class: "small", onclick: () => { cardId = null; store.set("card:" + code, null); render(); } }, "Trocar de cartela")));
+    if (s.winners.length) app.append($("h2", {}, "Vencedores"), winnersList(s.winners));
   }
 })();
 </script>
